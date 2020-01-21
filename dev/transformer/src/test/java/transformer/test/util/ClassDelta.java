@@ -2,7 +2,6 @@ package transformer.test.util;
 
 import java.io.PrintWriter;
 
-@SuppressWarnings("unused")
 public class ClassDelta implements Delta {
 	public static final String CLASS_NAME = ClassDelta.class.getSimpleName();
 
