@@ -1,0 +1,50 @@
+JakartaEE: PackageRename: 
+Tags: jakartaEE, packageRename
+
+https://github.com/tbitonti/jakartaee-prototype
+
+https://github.com/OpenLiberty/open-liberty/issues/9876
+
+Prior actions:
+  (1) Revisions to prototype conversion code
+  (2) Obtained the jakarta injection API jar
+  (3) Class conversion unit tests for injection API updates
+  (4) Moved prototype environment to githib
+    https://github.com/tbitonti/jakartaee-prototype
+
+Schedule Requirements:
+
+Milestones:
+  (All Liberty Jakarta features)
+  (WebProfile)
+  (Servlet5)
+
+Need Target Dates by 29-Jan-2020
+
+End-of-March: Builds are outputting Jakarta enabled liberty images
+
+Feb-15: Have available all Jarkarta API jars
+
+  WebContainer Servlet5 feature
+  -- *not* all of webProfile
+  -- Have: Jakarta enabled Liberty image
+  --       Jakarta Servlet5 application
+  --       Server configuration set to jakarta profile
+
+Next actions:
+
+(1) Manual steps:
+  (1) Put manually converted liberty archives into prototype environment
+  (2) Put manually converted application into prototype environment
+  (3) Hand run of converted application
+
+(2) Automation:
+  (1) Automate liberty image conversion
+  (2) Automate application conversion
+  (3) Automate run of converted application
+
+(3) Enumerate additional conversion requirements per (1) and (2):
+  (1) Expecting MANIFEST conversion requirements
+  (2) Expecting XML conversion requirements
+  (3) Expecting liberty source revisions
+  (4) May need conversion of specific string constants which are convertable javax and jakarta class names
