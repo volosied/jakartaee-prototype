@@ -1,4 +1,6 @@
-package com.ibm.ws.jakarta.transformer.action;
+package com.ibm.ws.jakarta.transformer.action.impl;
+
+import com.ibm.ws.jakarta.transformer.action.ServiceConfigChanges;
 
 public class ServiceConfigChangesImpl extends ChangesImpl implements ServiceConfigChanges {
 

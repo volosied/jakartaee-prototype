@@ -9,6 +9,9 @@ import java.io.InputStream;
 public interface JarAction extends Action {
 	void apply(
 		String inputPath, InputStream inputStream,
-		String outputPath, OutputStream outputStream,
-		JarChanges JarChanges) throws JakartaTransformException;
+		String outputPath, OutputStream outputStream)
+		throws JakartaTransformException;
+
+	@Override
+	JarChanges getChanges();	
 }

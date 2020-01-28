@@ -1,15 +1,19 @@
-package com.ibm.ws.jakarta.transformer.action;
+package com.ibm.ws.jakarta.transformer.action.impl;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.ibm.ws.jakarta.transformer.JakartaTransformException;
+import com.ibm.ws.jakarta.transformer.action.Action;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
+import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
 import aQute.bnd.signatures.ArrayTypeSignature;
 import aQute.bnd.signatures.BaseType;
@@ -56,6 +60,10 @@ public abstract class ActionImpl implements Action {
 
 		this.unchangedDescriptors = null;
 		this.changedDescriptors = null;
+
+		//
+
+		this.changes = newChanges();
 	}
 
 	//
@@ -105,12 +113,13 @@ public abstract class ActionImpl implements Action {
 		this.excluded = new HashSet<String>(excludes);
 
 		Map<String, String> useRenames = new HashMap<String, String>( renames.size() );
+
 		for ( Map.Entry<String, String> renameEntry : renames.entrySet() ) {
 			System.out.println("Binary conversion from [ " + renameEntry.getKey() + " ] to [ " + renameEntry.getValue() + " ]");
 			useRenames.put( renameEntry.getKey(), renameEntry.getValue() );
 		}
 		this.packageRenames = useRenames;
-		
+
 		this.unchangedBinaryTypes = new HashSet<>();
 		this.changedBinaryTypes = new HashMap<>();
 
@@ -119,6 +128,8 @@ public abstract class ActionImpl implements Action {
 
 		this.unchangedDescriptors = new HashSet<>();
 		this.changedDescriptors = new HashMap<>();
+
+		this.changes = newChanges();
 	}
 
 	//
@@ -169,6 +180,32 @@ public abstract class ActionImpl implements Action {
 
 	//
 
+	protected abstract ChangesImpl newChanges();
+
+	protected final ChangesImpl changes;
+
+	@Override
+	public ChangesImpl getChanges() {
+		return changes;
+	}
+
+	@Override
+	public boolean hasChanges() {
+		return getChanges().hasChanges();
+	}
+	
+	protected void clearChanges() {
+		getChanges().clearChanges();
+	}
+
+	protected void setResourceNames(String inputResourceName, String outputResourceName) {
+		ChangesImpl useChanges = getChanges();
+		useChanges.setInputResourceName(inputResourceName);
+		useChanges.setOutputResourceName(outputResourceName);
+	}
+
+	//
+
 	@Override
 	public String asClassName(String resourceName) {
 		return Action.resourceNameToClassName(resourceName);
@@ -196,20 +233,74 @@ public abstract class ActionImpl implements Action {
 		}
 	}
 
-	@Override
-	public boolean selectClass(String className) {
-		return select( asResourceName(className) );
-	}
-
 	//
 
 	private final Map<String, String> packageRenames;
 
-	protected String renamePackage(String packageName) {
+	/**
+	 * Replace a single package according to the package rename rules.
+	 * 
+	 * Package names must match exactly.
+	 *
+	 * @param initialName The package name which is to be replaced.
+	 *
+	 * @return The replacement for the initial package name.  Null if no
+	 *     replacement is available.
+	 */
+	protected String replacePackage(String initialName) {
 		if ( root != null ) {
-			return root.renamePackage(packageName);
+			return root.replacePackage(initialName);
 		} else {
-			return packageRenames.getOrDefault(packageName, null);
+			return packageRenames.getOrDefault(initialName, null);
+		}
+	}
+
+	/**
+	 * Replace all embedded packages of specified text with replacement
+	 * packages.
+	 *
+	 * @param embeddingText Text embedding zero, one, or more package names.
+	 *
+	 * @return The text with all embedded package names replaced.  Null if no
+	 *     replacements were performed.
+	 */
+	protected String replaceEmbeddedPackages(String embeddingText) {
+		if ( root != null ) {
+			return root.replaceEmbeddedPackages(embeddingText);
+
+		} else {
+			String initialText = embeddingText;
+
+			for ( Map.Entry<String, String> renameEntry : packageRenames.entrySet() ) {
+				String key = renameEntry.getKey();
+				int keyLen = key.length();
+
+				int textLimit = embeddingText.length() - keyLen;
+
+				int lastMatchEnd = 0;
+				while ( lastMatchEnd <= textLimit ) {
+					int nextMatchStart = embeddingText.indexOf(key, lastMatchEnd);
+					if ( nextMatchStart == -1 ) {
+						break;
+					}
+
+					String value = renameEntry.getValue();
+					int valueLen = value.length();
+
+					String head = embeddingText.substring(0, lastMatchEnd);
+					String tail = embeddingText.substring(nextMatchStart + valueLen);
+					embeddingText = head + value + tail;
+
+					lastMatchEnd = nextMatchStart + valueLen;
+					textLimit += (valueLen - keyLen);
+				}
+			}
+
+			if ( initialText == embeddingText) {
+				return null;
+			} else {
+				return embeddingText;
+			}
 		}
 	}
 
@@ -260,7 +351,7 @@ public abstract class ActionImpl implements Action {
 			if ( lastSlashOffset != -1 ) {
 				String inputPackage = inputName.substring(0, lastSlashOffset);
 				System.out.println("Input package [ " + inputPackage + " ]");
-				String outputPackage = renamePackage(inputPackage);
+				String outputPackage = replacePackage(inputPackage);
 				if ( outputPackage != null ) {
 					System.out.println("Output package [ " + outputPackage + " ]");
 					outputName = outputPackage + inputName.substring(lastSlashOffset);
@@ -555,7 +646,7 @@ public abstract class ActionImpl implements Action {
 		int length = inputPackageSpecifier.length();
 		if ( length > 0 ) {
 			String inputBinaryPackage = inputPackageSpecifier.substring(0, length - 1);
-			String outputBinaryPackage = renamePackage(inputBinaryPackage);
+			String outputBinaryPackage = replacePackage(inputBinaryPackage);
 			if ( outputBinaryPackage != null ) {
 				outputPackageSpecifier = outputBinaryPackage + '/';
 			}
@@ -695,34 +786,132 @@ public abstract class ActionImpl implements Action {
 
 	//
 
-	private byte[] inputBytes;
+	private byte[] inputBuffer;
 
-	private byte[] getInputBytes() {
+	protected byte[] getInputBuffer() {
 		if ( parent != null ) {
-			return parent.getInputBytes();
+			return parent.getInputBuffer();
 		} else {
-			return inputBytes;
+			return inputBuffer;
 		}
 	}
 
-	private void setInputBytes(byte[] inputBytes) {
+	protected void setInputBuffer(byte[] inputBuffer) {
 		if ( parent != null ) {
-			parent.setInputBytes(inputBytes);
+			parent.setInputBuffer(inputBuffer);
 		} else {
-			this.inputBytes = inputBytes;
+			this.inputBuffer = inputBuffer;
 		}
 	}
 
-	@Override
-	public ByteData read(String inputName, InputStream inputStream, int inputCount) throws IOException {
+	//
+
+	/**
+	 * Read bytes from an input stream.  Answer byte data and
+	 * a count of bytes read.
+	 *
+	 * @param inputName The name of the input stream.
+	 * @param inputStream A stream to be read.
+	 * @param inputCount The count of bytes to read from the stream.
+	 *     {@link Action#UNKNOWN_LENGTH} if the count of
+	 *     input bytes is not known.
+	 *
+	 * @return Byte data from the read.
+	 * 
+	 * @throws JakartaTransformException Indicates a read failure.
+	 */
+	protected ByteData read(String inputName, InputStream inputStream, int inputCount) throws JakartaTransformException {
 		if ( parent != null ) {
-			return parent.read(inputName, inputStream, inputCount);
+			return parent.read(inputName, inputStream, inputCount); // throws JakartaTransformException
 
 		} else {
-			byte[] readBytes = getInputBytes();
-			ByteData readData = FileUtils.read(inputName, inputStream, readBytes, inputCount); // throws IOException
-			setInputBytes(readData.data);
+			byte[] readBytes = getInputBuffer();
+			ByteData readData;
+			try {
+				readData = FileUtils.read(inputName, inputStream, readBytes, inputCount); // throws IOException
+			} catch ( IOException e ) {
+				throw new JakartaTransformException("Failed to read raw bytes [ " + inputName + " ] count [ " + inputCount + " ]", e);
+			}
+			setInputBuffer(readData.data);
 			return readData;
 		}
 	}
+
+	/**
+	 * Write data to an output stream.
+	 * 
+	 * Convert any exception thrown when attempting the write into a {@link JakartaTransformException}.
+	 * 
+	 * @param outputData Data to be written.
+	 * @param outputStream Stream to which to write the data.
+	 * 
+	 * @throws JakartaTransformException Thrown in case of a write failure.
+	 */
+	protected void write(ByteData outputData, OutputStream outputStream) throws JakartaTransformException {
+		try {
+			outputStream.write(outputData.data, outputData.offset, outputData.length); // throws IOException
+
+		} catch ( IOException e ) {
+			throw new JakartaTransformException(
+				"Failed to write [ " + outputData.name + " ]" +
+				" at [ " + outputData.offset + " ]" +
+				" count [ " + outputData.length + " ]",
+				e);
+		}
+	}
+
+	//
+
+	@Override
+	public InputStreamData apply(String inputName, InputStream inputStream)
+		throws JakartaTransformException {
+
+		return apply(inputName, inputStream, InputStreamData.UNKNOWN_LENGTH); // throws JakartaTransformException
+	}
+
+	@Override
+	public InputStreamData apply(String inputName, InputStream inputStream, int inputCount)
+		throws JakartaTransformException {
+
+		ByteData inputData = read(inputName, inputStream, inputCount);
+		// throws JakartaTransformException
+
+		ByteData outputData = apply(inputName, inputData.data, inputData.length);
+		// throws JakartaTransformException
+
+		if ( outputData == null ) {
+			outputData = inputData;
+		}
+
+		return new InputStreamData(outputData);
+	}
+
+	@Override
+	public boolean apply(
+		String inputName, InputStream inputStream, int inputCount,
+		OutputStream outputStream) throws JakartaTransformException {
+
+		ByteData inputData = read(inputName, inputStream, inputCount);
+		// throws JakartaTransformException
+
+		ByteData outputData = apply(inputName, inputData.data, inputData.length);
+		// throws JakartaTransformException
+
+		boolean hasChanges;
+		if ( outputData == null ) {
+			hasChanges = false;
+			outputData = inputData;
+		} else {
+			hasChanges = true;
+		}
+
+		write(outputData, outputStream); // throws JakartaTransformException		
+
+		return hasChanges;
+	}
+
+	@Override
+	public abstract ByteData apply(String inputName, byte[] inputBytes, int inputLength) 
+		throws JakartaTransformException;
+
 }

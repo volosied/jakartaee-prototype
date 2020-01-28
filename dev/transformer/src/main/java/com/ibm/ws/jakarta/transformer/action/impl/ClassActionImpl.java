@@ -1,9 +1,7 @@
-package com.ibm.ws.jakarta.transformer.action;
+package com.ibm.ws.jakarta.transformer.action.impl;
 
 import java.io.DataInput;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.ListIterator;
@@ -11,9 +9,9 @@ import java.util.Map;
 import java.util.Set;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
+import com.ibm.ws.jakarta.transformer.action.ClassAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
-import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
 import aQute.bnd.classfile.AnnotationDefaultAttribute;
 import aQute.bnd.classfile.AnnotationInfo;
@@ -91,6 +89,56 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 
 	//
 
+	public String getName() {
+		return "Class Action";
+	}
+
+	//
+
+	@Override
+	protected ClassChangesImpl newChanges() {
+		return new ClassChangesImpl();
+	}
+
+	@Override
+	public ClassChangesImpl getChanges() {
+		return (ClassChangesImpl) super.getChanges();
+	}
+
+	protected void setClassNames(String inputClassName, String outputClassName) {
+		ClassChangesImpl useChanges = getChanges();
+		useChanges.setInputClassName(inputClassName);
+		useChanges.setOutputClassName(outputClassName);
+	}
+
+	protected void setSuperClassNames(String inputSuperName, String outputSuperName) {
+		ClassChangesImpl useChanges = getChanges();
+		useChanges.setInputSuperName(inputSuperName);
+		useChanges.setOutputSuperName(outputSuperName);
+	}	
+
+	protected void addModifiedInterface() {
+		getChanges().addModifiedInterface();
+	}
+
+	protected void addModifiedField() {
+		getChanges().addModifiedField();
+	}
+
+	protected void addModifiedMethod() {
+		getChanges().addModifiedMethod();
+	}
+
+	protected void addModifiedAttribute() {
+		getChanges().addModifiedAttribute();
+	}
+
+	protected void setModifiedConstants(int modifiedConstants) {
+		getChanges().setModifiedConstants(modifiedConstants);
+	}
+
+	//
+
 	@Override
 	public boolean accept(String resourceName) {
 		return resourceName.endsWith(".class");
@@ -99,65 +147,10 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 	//
 
 	@Override
-	public boolean apply(
-		String inputName, InputStream inputStream, int inputCount,
-		OutputStream outputStream,
-		ClassChanges classChanges) throws JakartaTransformException {
+	public ByteData apply(String inputName, byte[] inputBytes, int inputLength)
+		throws JakartaTransformException {
 
-		ByteData inputData;
-		try {
-			inputData = read(inputName, inputStream, inputCount); // throws IOException
-		} catch ( IOException e ) {
-			throw new JakartaTransformException("Failed to read raw class bytes", e);
-		}
-
-		ByteData outputData = apply(inputName, inputData.data, inputData.length, classChanges); // throws TransformException
-		boolean hasChanges;
-		if ( outputData == null ) {
-			hasChanges = false;
-			outputData = inputData;
-		} else {
-			hasChanges = true;
-		}
-
-		try {
-			outputStream.write(outputData.data, outputData.offset, outputData.length); // throws IOException
-		} catch ( IOException e ) {
-			throw new JakartaTransformException("Failed to copy transformed class bytes", e);
-		}
-
-		return hasChanges;
-	}
-
-	@Override
-	public InputStreamData apply(String inputName, InputStream inputStream) throws JakartaTransformException {
-		return apply(inputName, inputStream, Action.UNKNOWN_LENGTH, NULL_CHANGES); // throws JakartaTransformException
-	}
-
-	@Override
-	public InputStreamData apply(String inputName, InputStream inputStream, int inputCount, ClassChanges classChanges) throws JakartaTransformException {
-		ByteData inputData;
-		try {
-			inputData = read(inputName, inputStream, inputCount); // throws IOException
-		} catch ( IOException e ) {
-			throw new JakartaTransformException("Failed to read raw class bytes", e);
-		}
-
-		ByteData outputData = apply(inputName, inputData.data, inputData.length, classChanges); // throws TransformException
-
-		if ( outputData == null ) {
-			outputData = inputData;
-		}
-
-		return new InputStreamData(outputData);
-	}
-
-	@Override
-	public ByteData apply(
-		String inputName, byte[] inputBytes, int inputLength,
-		ClassChanges classChanges) throws JakartaTransformException {
-
-		boolean hasChanges = false;
+		clearChanges();
 
 		ClassFile inputClass;
 		try {
@@ -179,19 +172,13 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		if ( outputClassName != null ) {
 			classBuilder.this_class(outputClassName);
 			outputName = asResourceName(outputClassName);
-			hasChanges = true;
 		} else {
 			outputClassName = inputClassName;
 			outputName = inputName;
 		}
 
-		if ( classChanges != null ) {
-			classChanges.setInputClassName(inputClassName);
-			classChanges.setOutputClassName(outputClassName);
-
-			classChanges.setInputResourceName(inputName);
-			classChanges.setOutputResourceName(outputName);
-		}
+		setClassNames(inputClassName, outputClassName);
+		setResourceNames(inputName, outputName);
 
 		verbose("%s", classBuilder);
 
@@ -200,15 +187,11 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 			String outputSuperName = transformBinaryType(inputSuperName);
 			if ( outputSuperName != null ) {
 				classBuilder.super_class(outputSuperName);
-				hasChanges = true;
 			} else {
 				outputSuperName = inputSuperName;
 			}
 
-			if ( classChanges != null ) {
-				classChanges.setInputSuperName(inputSuperName);
-				classChanges.setOutputSuperName(outputSuperName);
-			}
+			setSuperClassNames(inputSuperName, outputSuperName);
 
 			if ( !outputSuperName.equals("java/lang/Object") ) {
 				verbose("\n");
@@ -223,12 +206,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 				String interfaceName = transformBinaryType( interfaceNames.next() );
 				if ( interfaceName != null ) {
 					interfaceNames.set(interfaceName);
-					
-					hasChanges = true;
-
-					if ( classChanges != null ) {
-						classChanges.addModifiedInterface();
-					}
+					addModifiedInterface();
 				}
 			}
 
@@ -246,10 +224,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 			FieldInfo outputField = transform( inputField, FieldInfo::new, SignatureType.FIELD );
 			if ( outputField != null ) {
 				fields.set(outputField);
-				hasChanges = true;
-				if ( classChanges != null ) {
-					classChanges.addModifiedField();
-				}
+				addModifiedField();
 				verbose( "    %s -> %s\n", inputField, outputField);
 
 			}
@@ -261,10 +236,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 			MethodInfo outputMethod = transform( inputMethod, MethodInfo::new, SignatureType.METHOD );
 			if ( outputMethod != null ) {
 				methods.set(outputMethod);
-				hasChanges = true;
-				if ( classChanges != null ) {
-					classChanges.addModifiedMethod();
-				}
+				addModifiedMethod();
 				verbose( "    %s -> %s\n", inputMethod, outputMethod);
 			}
 		}
@@ -279,10 +251,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 			Attribute outputAttribute = transform(inputAttribute, SignatureType.CLASS);
 			if ( outputAttribute != null ) {
 				attributes.set(outputAttribute);
-				hasChanges = true;
-				if ( classChanges != null ) {
-					classChanges.addModifiedAttribute();
-				}
+				addModifiedAttribute();
 				verbose( "    %s -> %s\n", inputAttribute, outputAttribute);
 			}
 		}
@@ -292,13 +261,10 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 
 		int modifiedConstants = transform(constants);
 		if ( modifiedConstants > 0 ) {
-			hasChanges = true;
-			if ( classChanges != null ) {
-				classChanges.setModifiedConstants(modifiedConstants);
-			}
+			setModifiedConstants(modifiedConstants);
 		}
 
-		if ( !hasChanges ) {
+		if ( !hasChanges() ) {
 			log("    Class size: %s", inputLength);
 			return null;
 		}

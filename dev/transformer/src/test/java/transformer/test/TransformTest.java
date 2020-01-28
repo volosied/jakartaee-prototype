@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Test;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformProperties;
 import com.ibm.ws.jakarta.transformer.action.Action;
-import com.ibm.ws.jakarta.transformer.action.ClassActionImpl;
-import com.ibm.ws.jakarta.transformer.action.JarActionImpl;
-import com.ibm.ws.jakarta.transformer.action.ServiceConfigActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.ClassActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.JarActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.ServiceConfigActionImpl;
 
 import transformer.test.util.ClassData;
 

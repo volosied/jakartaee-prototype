@@ -1,22 +1,28 @@
 package com.ibm.ws.jakarta.transformer.action;
 
+import java.util.Set;
+
 public interface ArchiveChanges extends Changes {
-	int getChangedClasses();
-	void addChangedClass();
+	int getAllResources();
 
-	int getUnchangedClasses();
-	void addUnchangedClass();
+	int getAllUnchanged();
+	int getAllChanged();
+
+	Set<String> getActionNames();
+
+	int getChanged(Action action);
+	int getChanged(String name);
+
+	int getUnchanged(Action action);
+	int getUnchanged(String name);
 
 	//
 
-	int getChangedServiceConfigs();
-	void addChangedServiceConfig();
+	void record();
 
-	int getUnchangedServiceConfigs();
-	void addUnchangedServiceConfig();
+	boolean HAS_CHANGES = true;
 
-	//
-
-	int getAdditionalResources();
-	int addAdditionalResource();
+	void record(Action action);
+	void record(Action action, boolean hasChanges);
+	void record(String name, boolean hasChanges);
 }

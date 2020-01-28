@@ -1,4 +1,4 @@
-package com.ibm.ws.jakarta.transformer.action;
+package com.ibm.ws.jakarta.transformer.action.impl;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,6 +11,12 @@ import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
+import com.ibm.ws.jakarta.transformer.action.Action;
+import com.ibm.ws.jakarta.transformer.action.ArchiveChanges;
+import com.ibm.ws.jakarta.transformer.action.ClassAction;
+import com.ibm.ws.jakarta.transformer.action.JarAction;
+import com.ibm.ws.jakarta.transformer.action.ServiceConfigAction;
+import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
 import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
@@ -33,12 +39,48 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 
 	//
 
+	public String getName() {
+		return "Jar Action";
+	}
+
+	//
+
+	@Override
+	protected JarChangesImpl newChanges() {
+		return new JarChangesImpl();
+	}
+
+	@Override
+	public JarChangesImpl getChanges() {
+		return (JarChangesImpl) super.getChanges();
+	}
+
+	protected void record() {
+		getChanges().record();
+	}
+
+	protected void record(Action action) {
+		getChanges().record(action);
+	}
+
+	protected void record(Action action, boolean hasChanges) {
+		getChanges().record(action, hasChanges);
+	}
+
+	//
+
+	@Override
+	public boolean accept(String resourceName) {
+		return resourceName.endsWith(".jar");
+	}
+
+	//
+
 	@SuppressWarnings("resource") // Streams are closed by the caller.
 	@Override
 	public void apply(
 		String inputPath, InputStream inputStream,
-		String outputPath, OutputStream outputStream,
-		JarChanges jarChanges) throws JakartaTransformException {
+		String outputPath, OutputStream outputStream) throws JakartaTransformException {
 
 		JarInputStream jarInputStream;
 		try {
@@ -55,7 +97,7 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 		}
 
 		try {
-			applyJar(inputPath, jarInputStream, outputPath, jarOutputStream, jarChanges);
+			applyJar(inputPath, jarInputStream, outputPath, jarOutputStream);
 			// throws JakartaTransformException
 
 		} finally {
@@ -69,18 +111,14 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 
 	protected void applyJar(
 		String inputPath, JarInputStream jarInputStream,
-		String outputPath, JarOutputStream jarOutputStream,
-		JarChanges jarChanges) throws JakartaTransformException {
+		String outputPath, JarOutputStream jarOutputStream) throws JakartaTransformException {
 
 		String prevName = null;
 		String inputName = null;
 
 		try {
 			ClassAction classAction = new ClassActionImpl(this);
-			ClassChanges classChanges = new ClassChangesImpl();
-
 			ServiceConfigAction configAction = new ServiceConfigActionImpl(this);
-			ServiceConfigChanges configChanges = new ServiceConfigChangesImpl();
 
 			byte[] buffer = new byte[FileUtils.BUFFER_ADJUSTMENT];
 
@@ -88,27 +126,21 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 			while ( (inputEntry = (JarEntry) jarInputStream.getNextEntry()) != null ) {
 				inputName = inputEntry.getName();
 
-				boolean isClass;
-				boolean isConfig;
+				Action selectedAction;
 
 				if ( classAction.accept(inputName) ) {
-					isClass = true;
-					isConfig = false;
+					selectedAction = classAction;
 				} else if ( configAction.accept(inputName) ) {
-					isClass = false;
-					isConfig = true;
+					selectedAction = configAction;
 				} else {
-					isClass = false;
-					isConfig = false;
+					selectedAction = null;
 				}
 
-				if ( !select(inputName) || (!isClass && !isConfig) ) {
-					if ( isClass ) {
-						jarChanges.addUnchangedClass();
-					} else if ( isConfig ) {
-						jarChanges.addUnchangedServiceConfig();
+				if ( !select(inputName) || (selectedAction == null) ) {
+					if ( selectedAction == null ) {
+						record();
 					} else {
-						jarChanges.addAdditionalResource();
+						record(selectedAction, !ArchiveChanges.HAS_CHANGES);
 					}
 
 					// TODO: Should more of the entry details be transferred?
@@ -130,32 +162,9 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 
 					InputStreamData outputData;
 
-					if ( isClass ) {
-						classChanges.clearChanges();
+					outputData = selectedAction.apply(inputName, jarInputStream, intInputLength);
 
-						outputData = classAction.apply(
-							inputName, jarInputStream, intInputLength,
-							classChanges);
-
-						if ( classChanges.hasChanges() ) {
-							jarChanges.addChangedClass();
-						} else {
-							jarChanges.addUnchangedClass();
-						}
-
-					} else {
-						configChanges.clearChanges();
-
-						outputData = configAction.apply(
-							inputName, jarInputStream, intInputLength,
-							configChanges);
-
-						if ( configChanges.hasChanges() ) {
-							jarChanges.addChangedServiceConfig();
-						} else {
-							jarChanges.addUnchangedServiceConfig();
-						}
-					}
+					record(selectedAction);
 
 					// TODO: Should more of the entry details be transferred?
 
@@ -180,5 +189,12 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 			}
 			throw new JakartaTransformException(message, e);
 		}
+	}
+
+	// Byte base JAR conversion is not supported.
+
+	@Override
+	public ByteData apply(String inputName, byte[] inputBytes, int inputLength) throws JakartaTransformException {
+		throw new UnsupportedOperationException();
 	}
 }

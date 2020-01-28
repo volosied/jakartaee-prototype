@@ -1,8 +1,10 @@
-package com.ibm.ws.jakarta.transformer.action;
+package com.ibm.ws.jakarta.transformer.action.impl;
+
+import com.ibm.ws.jakarta.transformer.action.Changes;
 
 public abstract class ChangesImpl implements Changes {
 	public ChangesImpl() {
-		this.clearChanges();
+		// Empty
 	}
 
 	@Override

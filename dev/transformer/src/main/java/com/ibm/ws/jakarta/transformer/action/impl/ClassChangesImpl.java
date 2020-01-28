@@ -1,4 +1,6 @@
-package com.ibm.ws.jakarta.transformer.action;
+package com.ibm.ws.jakarta.transformer.action.impl;
+
+import com.ibm.ws.jakarta.transformer.action.ClassChanges;
 
 public class ClassChangesImpl extends ChangesImpl implements ClassChanges {
 	@Override

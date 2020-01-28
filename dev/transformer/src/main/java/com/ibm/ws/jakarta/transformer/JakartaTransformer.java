@@ -25,13 +25,11 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import com.ibm.ws.jakarta.transformer.action.ClassAction;
-import com.ibm.ws.jakarta.transformer.action.ClassActionImpl;
 import com.ibm.ws.jakarta.transformer.action.ClassChanges;
-import com.ibm.ws.jakarta.transformer.action.ClassChangesImpl;
 import com.ibm.ws.jakarta.transformer.action.JarAction;
-import com.ibm.ws.jakarta.transformer.action.JarActionImpl;
 import com.ibm.ws.jakarta.transformer.action.JarChanges;
-import com.ibm.ws.jakarta.transformer.action.JarChangesImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.ClassActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.JarActionImpl;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
 
 import aQute.lib.io.IO;
@@ -528,11 +526,12 @@ public class JakartaTransformer {
         		ClassAction classAction = new ClassActionImpl(
         			getInfoStream(), isTerse, isVerbose,
         			includes, excludes, packageRenames);
-        		ClassChanges classChanges = new ClassChangesImpl();
 
-        		classAction.apply(inputPath, inputStream, intLength, outputStream, classChanges);
+        		classAction.apply(inputPath, inputStream, intLength, outputStream);
 
-        		if ( classChanges.hasChanges() ) {
+        		if ( classAction.hasChanges() ) {
+        			ClassChanges classChanges = classAction.getChanges();
+
         			info( "Class name [ %s ] [ %s ]%n",
                 		classChanges.getInputClassName(),
         				classChanges.getOutputClassName() );
@@ -554,18 +553,26 @@ public class JakartaTransformer {
         		JarAction jarAction = new JarActionImpl(
         			getInfoStream(), isTerse, isVerbose,
         			includes, excludes, packageRenames);
-        		JarChanges jarChanges = new JarChangesImpl();
 
-        		jarAction.apply(inputPath, inputStream, outputPath, outputStream, jarChanges);
+        		jarAction.apply(inputPath, inputStream, outputPath, outputStream);
 
-        		if ( jarChanges.hasChanges() ) {
-        			info( "Changed classes           [ %s ]%n", jarChanges.getChangedClasses() );
-        			info( "Unchanged classes         [ %s ]%n", jarChanges.getUnchangedClasses() );
+        		if ( jarAction.hasChanges() ) {
+        			JarChanges jarChanges = jarAction.getChanges();
 
-        			info( "Changed service config    [ %s ]%n", jarChanges.getChangedServiceConfigs() );
-        			info( "Unchanged service config  [ %s ]%n", jarChanges.getUnchangedServiceConfigs() );
+        			info( "Jar name [ %s ] [ %s ]%n",
+                    		jarChanges.getInputResourceName(),
+            				jarChanges.getOutputResourceName() );
+        			
+        			info( "  Resources   [ %s ]", jarChanges.getAllResources() );
+        			info( "    Unchanged [ %s ]", jarChanges.getAllUnchanged() );
+        			info( "    Changed   [ %s ]", jarChanges.getAllChanged() );
 
-        			info( "Non-class resources       [ %s ]%n", jarChanges.getAdditionalResources() );
+        			for ( String actionName : jarChanges.getActionNames() ) { 
+        				info( "  [ %s ] Unchanged [ %s ] Changed [ %s]",
+        					actionName,
+        					jarChanges.getUnchanged(actionName),
+        					jarChanges.getChanged(actionName) );
+        			}
         		}
         	}
         }

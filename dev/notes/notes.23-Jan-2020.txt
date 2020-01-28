@@ -1,0 +1,35 @@
+for servlet
+  manifest
+  OSGI metadata (xml)
+  static constants (e.g., JSFInjectionClassListCollaborator.java)
+  (maybe) maven metadata (because of renaming; not active in runtime)
+  feature manifest updates (look at WLP_HOME/lib/features; dev/com.ibm.websphere.appserver.features/*)
+  (first time, point com.ibm.websphere.appserver.servlet-4.0.feature at the jakarta api jars)
+
+for JSP feature:
+  new static constant cases (e.g.: BaseTagGenerator.java)
+  (maybe not until app conversion) JSP text transformation
+  additional JSP questions to have with the wider group
+
+server image
+  first time, use minify on servlet-4
+transformation tooling
+transformation rules
+jakarta api jars
+
+select webcontainer jars to transform
+
+transform the server image
+  (maybe) update kernel to remove javax dependencies
+  transform webcontainer jars
+    first time, no bundle renames
+  wire in jakarta api jars
+  wire in jakarta feature into server metadata
+
+use transformed server image to run a sample jakarta application
+
+(0) update source image to 20.0.0.1
+(1) add manifest transform action
+(2) need command line jar tool (tom)
+(3) convert webcontainer jars using the tool (phu)
+(3.5) string constants?
