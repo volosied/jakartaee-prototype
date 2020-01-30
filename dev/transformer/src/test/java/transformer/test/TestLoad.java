@@ -11,7 +11,7 @@ import com.ibm.ws.jakarta.transformer.JakartaTransformer;
 public class TestLoad {
 
 	public static final String RULES_PATH =
-		JakartaTransformer.DEFAULT_RULES_REFERENCE;
+		JakartaTransformer.DEFAULT_RENAMES_REFERENCE;
 
 	@Test
 	public void testRulesLoad() throws IOException {

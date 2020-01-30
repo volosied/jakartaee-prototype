@@ -15,6 +15,7 @@ import com.ibm.ws.jakarta.transformer.action.Action;
 import com.ibm.ws.jakarta.transformer.action.ArchiveChanges;
 import com.ibm.ws.jakarta.transformer.action.ClassAction;
 import com.ibm.ws.jakarta.transformer.action.JarAction;
+import com.ibm.ws.jakarta.transformer.action.ManifestAction;
 import com.ibm.ws.jakarta.transformer.action.ServiceConfigAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
@@ -55,16 +56,26 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 		return (JarChangesImpl) super.getChanges();
 	}
 
-	protected void record() {
+	protected void recordUnaccepted(String resourceName) {
+		verbose( "Resource [ %s ]: Unaccepted\n", resourceName );
+
 		getChanges().record();
 	}
 
-	protected void record(Action action) {
-		getChanges().record(action);
+	protected void recordUnselected(Action action, boolean hasChanges, String resourceName) {
+		verbose(
+			"Action [ %s ] Resource [ %s ]: Unselected\n",
+			action.getName(), resourceName );
+
+		getChanges().record(action, hasChanges);
 	}
 
-	protected void record(Action action, boolean hasChanges) {
-		getChanges().record(action, hasChanges);
+	protected void recordTransform(Action action, String resourceName) {
+		verbose(
+			"Action [ %s ] Resource [ %s ]: Changes [ %s ]\n",
+			action.getName(), resourceName, action.hasChanges() );
+
+		getChanges().record(action);
 	}
 
 	//
@@ -81,6 +92,8 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 	public void apply(
 		String inputPath, InputStream inputStream,
 		String outputPath, OutputStream outputStream) throws JakartaTransformException {
+
+		setResourceNames(inputPath, outputPath);
 
 		JarInputStream jarInputStream;
 		try {
@@ -119,6 +132,7 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 		try {
 			ClassAction classAction = new ClassActionImpl(this);
 			ServiceConfigAction configAction = new ServiceConfigActionImpl(this);
+			ManifestAction manifestAction = new ManifestActionImpl(this);
 
 			byte[] buffer = new byte[FileUtils.BUFFER_ADJUSTMENT];
 
@@ -132,15 +146,17 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 					selectedAction = classAction;
 				} else if ( configAction.accept(inputName) ) {
 					selectedAction = configAction;
+				} else if ( manifestAction.accept(inputName) ) {
+					selectedAction = manifestAction;
 				} else {
 					selectedAction = null;
 				}
 
 				if ( !select(inputName) || (selectedAction == null) ) {
 					if ( selectedAction == null ) {
-						record();
+						recordUnaccepted(inputName);
 					} else {
-						record(selectedAction, !ArchiveChanges.HAS_CHANGES);
+						recordUnselected(selectedAction, !ArchiveChanges.HAS_CHANGES, inputName);
 					}
 
 					// TODO: Should more of the entry details be transferred?
@@ -164,7 +180,7 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 
 					outputData = selectedAction.apply(inputName, jarInputStream, intInputLength);
 
-					record(selectedAction);
+					recordTransform(selectedAction, inputName);
 
 					// TODO: Should more of the entry details be transferred?
 

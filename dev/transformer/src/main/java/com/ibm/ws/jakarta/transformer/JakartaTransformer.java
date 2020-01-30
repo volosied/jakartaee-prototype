@@ -12,7 +12,6 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
@@ -169,9 +168,9 @@ public class JakartaTransformer {
     public static final String INPUT_GROUP = "input";
     public static final String LOGGING_GROUP = "logging";
 
-    // Is loaded relative to the package of the transformer class.
-    // The package name is added when loading the resource.
-    public static final String DEFAULT_RULES_REFERENCE = "jakarta-rules.properties";
+    public static final String DEFAULT_SELECTIONS_REFERENCE = "jakarta-selections.properties";
+    public static final String DEFAULT_RENAMES_REFERENCE = "jakarta-renames.properties";
+    public static final String DEFAULT_VERSIONS_REFERENCE = "jakarta-versions.properties";
 
     public static enum TransformType {
         CLASS, MANIFEST, SERVICE_CONFIG, XML,
@@ -188,8 +187,13 @@ public class JakartaTransformer {
         VERBOSE("v", "verbose", "Display verbose output",
         	!OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),        
 
-        RULES("t", "transform", "Explicit transformation rules URL",
+        RULES_SELECTIONS("ts", "transform selection", "Transformation selections URL",
         	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+        RULES_RENAMES("tr", "transform renames", "Transformation package renames URL",
+        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+        RULES_VERSIONS("tv", "transform versions", "Transformation package versions URL",
+        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+
         INVERT("i", "invert", "Invert transformation rules",
            	!OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
 
@@ -303,9 +307,9 @@ public class JakartaTransformer {
         getErrorStream().printf(message, parms);
     }
 
-    protected void error(String message, Exception e, Object... parms) {
-        getErrorStream().printf(message, e.getMessage(), parms);
-        e.printStackTrace( getErrorStream() );
+    protected void error(String message, Throwable th, Object... parms) {
+        getErrorStream().printf(message, th.getMessage(), parms);
+        th.printStackTrace( getErrorStream() );
     }
 
     private final Options appOptions;
@@ -373,22 +377,24 @@ public class JakartaTransformer {
 
     //
 
-    protected UTF8Properties loadRules() throws IOException, URISyntaxException {
-        URL rulesUrl;
-        String rulesReference = getOptionValue(AppOption.RULES);
+    protected UTF8Properties loadProperties(AppOption ruleOption, String defaultReference) throws IOException, URISyntaxException {
+
+    	URL rulesUrl;
+        String rulesReference = getOptionValue(ruleOption);
         if ( rulesReference != null ) {
-            info("Using explicit rules at [ " + rulesReference + " ]\n");
+            info("Using external [ " + ruleOption + " ]: [ " + rulesReference + " ]\n");
             URI currentDirectoryUri = IO.work.toURI();
             rulesUrl = URIUtil.resolve(currentDirectoryUri, rulesReference).toURL();
-            info("External rules URL [ " + rulesUrl + " ]\n");
+            info("External [ " + ruleOption + " ] URL [ " + rulesUrl + " ]\n");
         } else {
-            rulesReference = DEFAULT_RULES_REFERENCE;
-            info("Using internal rules at [ " + rulesReference + " ]\n");
+            rulesReference = defaultReference;
+            info("Using internal [ " + ruleOption + " ]: [ " + rulesReference + " ]\n");
             rulesUrl = getClass().getResource(rulesReference);
             if ( rulesUrl == null ) {
-                throw new IOException("Default rules were not found [ " + rulesReference + " ]");
+        		info("Default [ " + AppOption.RULES_SELECTIONS + " ] were not found [ " + rulesReference + " ]");
+        		return null;
             } else {
-                info("Internal rules URL [ " + rulesUrl + " ]\n");
+                info("Default [ " + ruleOption + " ] URL [ " + rulesUrl + " ]\n");
             }
         }
 
@@ -403,34 +409,18 @@ public class JakartaTransformer {
     	public boolean isVerbose;
     	public boolean isTerse;
 
-    	public Properties properties;
-    	public boolean invert;
-
     	public Set<String> includes;
     	public Set<String> excludes;
+
+    	public boolean invert;
     	public Map<String, String> packageRenames;
-    	
+
+    	public Map<String, String> packageVersions;
+
     	public TransformType transformType;
 
     	public String inputName;
     	public String outputName;
-
-    	protected void setRules() throws IOException, URISyntaxException {
-        	properties = loadRules();
-        	invert = hasOption(AppOption.INVERT);
-
-        	includes = new HashSet<String>();
-        	excludes = new HashSet<String>();
-        	String selectionsText = properties.getProperty(JakartaTransformProperties.RESOURCE_SELECTION_PROPERTY_NAME);
-        	JakartaTransformProperties.setSelections(includes, excludes, selectionsText);
-
-        	String renamesText = properties.getProperty(JakartaTransformProperties.PACKAGE_RENAME_PROPERTY_NAME);        	
-        	Map<String, String> renames = JakartaTransformProperties.getPackageRenames(renamesText);
-        	if ( invert ) {
-        		renames = JakartaTransformProperties.invert(renames);
-        	}
-        	packageRenames = renames;
-    	}
 
     	protected void setLogging() {
             if ( hasOption(AppOption.TERSE) ) {
@@ -445,6 +435,76 @@ public class JakartaTransformer {
             	isTerse = false;
             	isVerbose = false;
             }
+    	}
+
+    	protected boolean setRules() throws IOException, URISyntaxException {
+    		UTF8Properties selectionProperties = loadProperties(AppOption.RULES_SELECTIONS, DEFAULT_SELECTIONS_REFERENCE);
+    		UTF8Properties renameProperties = loadProperties(AppOption.RULES_RENAMES, DEFAULT_RENAMES_REFERENCE);
+    		UTF8Properties versionProperties = loadProperties(AppOption.RULES_VERSIONS, DEFAULT_VERSIONS_REFERENCE);
+
+        	invert = hasOption(AppOption.INVERT);
+
+        	includes = new HashSet<String>();
+        	excludes = new HashSet<String>();
+
+        	if ( selectionProperties != null ) {
+        		JakartaTransformProperties.setSelections(includes, excludes, selectionProperties);
+        	} else {
+        		info("All resources will be selected");
+        	}
+
+        	if ( renameProperties != null ) {
+        		Map<String, String> renames = JakartaTransformProperties.getPackageRenames(renameProperties);
+        		if ( invert ) {
+        			renames = JakartaTransformProperties.invert(renames);
+        		}
+        		packageRenames = renames;
+        	} else {
+        		info("No package renames are available");
+        		packageRenames = null;
+        	}
+
+        	if ( versionProperties != null ) {
+        		packageVersions = JakartaTransformProperties.getPackageVersions(versionProperties);
+        	} else {
+        		info("Package versions will not be updated");
+        	}
+
+        	return ( packageRenames != null );
+    	}
+
+    	protected void logRules(PrintStream logStream) {
+    		logStream.println("Includes:");
+    		if ( includes.isEmpty() ) {
+    			logStream.println("  [ ** NONE ** ]");
+    		} else {
+    			for ( String include : includes ) {
+    				logStream.println("  [ " + include + " ]");
+    			}
+    		}
+
+      		logStream.println("Excludes:");
+    		if ( excludes.isEmpty() ) {
+    			logStream.println("  [ ** NONE ** ]");
+    		} else {
+    			for ( String exclude : excludes ) {
+    				logStream.println("  [ " + exclude + " ]");
+    			}
+    		}
+
+    		if ( invert ) {
+          		logStream.println("Package Renames: [ ** INVERTED ** ]");
+    		} else {
+          		logStream.println("Package Renames:");
+    		}
+    		
+    		if ( packageRenames.isEmpty() ) {
+    			logStream.println("  [ ** NONE ** ]");
+    		} else {
+    			for ( Map.Entry<String, String> renameEntry : packageRenames.entrySet() ) {
+        			logStream.println("  [ " + renameEntry.getKey() + " ]: [ " + renameEntry.getValue() + " ]");
+    			}
+    		}
     	}
 
         protected boolean setInput() {
@@ -549,7 +609,7 @@ public class JakartaTransformer {
             }
 
             if ( outputFile.exists() ) {
-            	throw new JakartaTransformException("Output already exists [ " + inputFile.getAbsolutePath() + " ]");
+            	throw new JakartaTransformException("Output already exists [ " + outputFile.getAbsolutePath() + " ]");
             }
 
             long inputLength = inputFile.length();
@@ -663,11 +723,16 @@ public class JakartaTransformer {
                 	jarChanges.getOutputResourceName() );
 
             	info( "  Resources   [ %s ]\n", jarChanges.getAllResources() );
-            	info( "    Unchanged [ %s ]\n", jarChanges.getAllUnchanged() );
-            	info( "    Changed   [ %s ]\n", jarChanges.getAllChanged() );
+
+            	int allUnchanged = jarChanges.getAllUnchanged();
+            	int allChanged = jarChanges.getAllChanged();
+
+            	info( "  Selected [ %s ]\n", (allUnchanged + allChanged) );
+            	info( "    Unchanged [ %s ]\n", allUnchanged );
+            	info( "    Changed   [ %s ]\n", allChanged );
 
             	for ( String actionName : jarChanges.getActionNames() ) { 
-            		info( "  [ %s ] Unchanged [ %s ] Changed [ %s]\n",
+            		info( "  [ %s ] Unchanged [ %s ] Changed [ %s ]\n",
             			actionName,
             			jarChanges.getUnchanged(actionName),
             			jarChanges.getChanged(actionName) );
@@ -738,15 +803,24 @@ public class JakartaTransformer {
 
         TransformOptions options = new TransformOptions();
 
+        options.setLogging();
+
+        boolean loadedRules;
         try {
-        	options.setRules();
+        	loadedRules = options.setRules();
         } catch ( Exception e ) {
             error("Exception loading rules: %s\n", e);
             return RULES_ERROR_RC;
         }
+        if ( !loadedRules ) {
+        	error("Transformation rules cannot be used");
+        	return RULES_ERROR_RC;
+        }
 
-        options.setLogging();
-        
+        if ( options.isVerbose ) {
+        	options.logRules( getInfoStream() );
+        }
+
         if ( !options.setInput() ) {
             error("No input option was specified");
             return TRANSFORM_ERROR_RC;
