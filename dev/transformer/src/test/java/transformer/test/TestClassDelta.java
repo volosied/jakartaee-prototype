@@ -5,10 +5,12 @@ import java.io.PrintWriter;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import transformer.test.data.Sample_InjectAPI_Jakarta;
+import transformer.test.data.Sample_InjectAPI_Javax;
 import transformer.test.util.ClassData;
 import transformer.test.util.ClassDelta;
 
-public class DeltaTest {
+public class TestClassDelta {
 
 	@Test
 	public void testNullClassChange() {

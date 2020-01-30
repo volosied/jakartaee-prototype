@@ -115,7 +115,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 		Attributes finalMainAttributes = finalManifest.getMainAttributes();
 
 		for ( Map.Entry<Object, Object> mainEntries : initialMainAttributes.entrySet() ) {
-			String mainKey = (String) mainEntries.getKey();
+			Attributes.Name mainKey = (Attributes.Name) mainEntries.getKey();
 			String initialMainValue = (String) mainEntries.getValue();
 
 			String finalMainValue = replaceEmbeddedPackages(initialMainValue);

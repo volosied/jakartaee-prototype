@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
 
-public class URLTest {
+public class TestURL {
 
 	public static String classToResource(String className) {
 		return className.replace('.',  '/') + ".class";
@@ -77,9 +77,9 @@ public class URLTest {
 
 	@Test
 	public void testClassLoaderAPI() {
-		String urlTestClassName = URLTest.class.getName();
+		String urlTestClassName = TestURL.class.getName();
 
-		ClassLoader urlTestLoader = URLTest.class.getClassLoader();
+		ClassLoader urlTestLoader = TestURL.class.getClassLoader();
 
 		String urlTestResourceName = classToResource(urlTestClassName);
 		URL urlTestURL = urlTestLoader.getResource(urlTestResourceName);

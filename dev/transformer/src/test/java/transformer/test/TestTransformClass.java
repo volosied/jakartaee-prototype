@@ -16,9 +16,11 @@ import com.ibm.ws.jakarta.transformer.action.impl.ClassActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.JarActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ServiceConfigActionImpl;
 
+import transformer.test.data.Sample_InjectAPI_Jakarta;
+import transformer.test.data.Sample_InjectAPI_Javax;
 import transformer.test.util.ClassData;
 
-public class TransformTest {
+public class TestTransformClass {
 
 	@Test
 	public void testJavaxAsJavax_inject() {

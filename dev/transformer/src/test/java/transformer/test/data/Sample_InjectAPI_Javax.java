@@ -1,4 +1,4 @@
-package transformer.test;
+package transformer.test.data;
 
 import javax.inject.Inject;
 import javax.inject.Named;

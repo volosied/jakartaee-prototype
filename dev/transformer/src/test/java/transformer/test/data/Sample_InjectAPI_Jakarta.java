@@ -1,4 +1,4 @@
-package transformer.test;
+package transformer.test.data;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Named;

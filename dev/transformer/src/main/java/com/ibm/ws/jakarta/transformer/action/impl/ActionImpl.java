@@ -115,7 +115,7 @@ public abstract class ActionImpl implements Action {
 		Map<String, String> useRenames = new HashMap<String, String>( renames.size() );
 
 		for ( Map.Entry<String, String> renameEntry : renames.entrySet() ) {
-			System.out.println("Binary conversion from [ " + renameEntry.getKey() + " ] to [ " + renameEntry.getValue() + " ]");
+			// System.out.println("Binary conversion from [ " + renameEntry.getKey() + " ] to [ " + renameEntry.getValue() + " ]");
 			useRenames.put( renameEntry.getKey(), renameEntry.getValue() );
 		}
 		this.packageRenames = useRenames;
@@ -269,11 +269,15 @@ public abstract class ActionImpl implements Action {
 			return root.replaceEmbeddedPackages(embeddingText);
 
 		} else {
+			// System.out.println("Initial text [ " + embeddingText + " ]");
+
 			String initialText = embeddingText;
 
 			for ( Map.Entry<String, String> renameEntry : packageRenames.entrySet() ) {
 				String key = renameEntry.getKey();
 				int keyLen = key.length();
+
+				// System.out.println("Next target [ " + key + " ]");
 
 				int textLimit = embeddingText.length() - keyLen;
 
@@ -287,18 +291,22 @@ public abstract class ActionImpl implements Action {
 					String value = renameEntry.getValue();
 					int valueLen = value.length();
 
-					String head = embeddingText.substring(0, lastMatchEnd);
-					String tail = embeddingText.substring(nextMatchStart + valueLen);
+					String head = embeddingText.substring(0, nextMatchStart);
+					String tail = embeddingText.substring(nextMatchStart + keyLen);
 					embeddingText = head + value + tail;
 
 					lastMatchEnd = nextMatchStart + valueLen;
 					textLimit += (valueLen - keyLen);
+
+					// System.out.println("Next text [ " + embeddingText + " ]");
 				}
 			}
 
 			if ( initialText == embeddingText) {
+				// System.out.println("Final text is unchanged");
 				return null;
 			} else {
+				// System.out.println("Final text [ " + embeddingText + " ]");
 				return embeddingText;
 			}
 		}
@@ -323,16 +331,16 @@ public abstract class ActionImpl implements Action {
 			return root.transformBinaryType(inputName);
 		}
 
-		System.out.println("Input type [ " + inputName + " ]");
+		// System.out.println("Input type [ " + inputName + " ]");
 
 		if ( unchangedBinaryTypes.contains(inputName) ) {
-			System.out.println("Unchanged (Prior)");
+			// System.out.println("Unchanged (Prior)");
 			return null;
 		}
 
 		String outputName = changedBinaryTypes.get(inputName);
 		if ( outputName != null ) {
-			System.out.println("Change to [ " + outputName + " ] (Prior)");
+			// System.out.println("Change to [ " + outputName + " ] (Prior)");
 			return outputName;
 		}
 
@@ -350,10 +358,10 @@ public abstract class ActionImpl implements Action {
 			int lastSlashOffset = inputName.lastIndexOf('/');
 			if ( lastSlashOffset != -1 ) {
 				String inputPackage = inputName.substring(0, lastSlashOffset);
-				System.out.println("Input package [ " + inputPackage + " ]");
+				// System.out.println("Input package [ " + inputPackage + " ]");
 				String outputPackage = replacePackage(inputPackage);
 				if ( outputPackage != null ) {
-					System.out.println("Output package [ " + outputPackage + " ]");
+					// System.out.println("Output package [ " + outputPackage + " ]");
 					outputName = outputPackage + inputName.substring(lastSlashOffset);
 				} else {
 					// Leave outputName null.
@@ -365,10 +373,10 @@ public abstract class ActionImpl implements Action {
 
 		if ( outputName == null ) {
 			unchangedBinaryTypes.add(inputName);
-			System.out.println("Unchanged");
+			// System.out.println("Unchanged");
 		} else {
 			changedBinaryTypes.put(inputName, outputName);
-			System.out.println("Change to [ " + outputName + " ]");
+			// System.out.println("Change to [ " + outputName + " ]");
 		}
 
 		return outputName;
