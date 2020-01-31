@@ -19,18 +19,18 @@ import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
 public class TestTransformServiceConfig {
 	
-	public static final String JAVAX_OTHER_READER_SERVICE_PATH = "transform/test/data/META-INF/services/javax.other.Reader";
+	public static final String JAVAX_OTHER_READER_SERVICE_PATH = "transformer/test/data/META-INF/services/javax.other.Reader";
 	public static final String[] JAVAX_OTHER_READER_LINES = { "javax.other.ReaderImpl" };
-	public static final String JAVAX_SAMPLE_READER_SERVICE_PATH = "transform/test/data/META-INF/services/javax.sample.Reader";
+	public static final String JAVAX_SAMPLE_READER_SERVICE_PATH = "transformer/test/data/META-INF/services/javax.sample.Reader";
 	public static final String[] JAVAX_SAMPLE_READER_LINES = { "javax.sample.ReaderImpl" };	
-	public static final String JAVAX_SAMPLE_WRITER_SERVICE_PATH = "transform/test/data/META-INF/services/javax.sample.Writer";
+	public static final String JAVAX_SAMPLE_WRITER_SERVICE_PATH = "transformer/test/data/META-INF/services/javax.sample.Writer";
 	public static final String[] JAVAX_SAMPLE_WRITER_LINES = { "javax.sample.WriterImpl" };	
 	
-	public static final String JAKARTA_OTHER_READER_SERVICE_PATH = "transform/test/data/META-INF/services/jakarta.other.Reader";
+	public static final String JAKARTA_OTHER_READER_SERVICE_PATH = "transformer/test/data/META-INF/services/jakarta.other.Reader";
 	public static final String[] JAKARTA_OTHER_READER_LINES = { "jakarta.other.ReaderImpl" };
-	public static final String JAKARTA_SAMPLE_READER_SERVICE_PATH = "transform/test/data/META-INF/services/jakarta.sample.Reader";
+	public static final String JAKARTA_SAMPLE_READER_SERVICE_PATH = "transformer/test/data/META-INF/services/jakarta.sample.Reader";
 	public static final String[] JAKARTA_SAMPLE_READER_LINES = { "jakarta.sample.ReaderImpl" };	
-	public static final String JAKARTA_SAMPLE_WRITER_SERVICE_PATH = "transform/test/data/META-INF/services/jakarta.sample.Writer";
+	public static final String JAKARTA_SAMPLE_WRITER_SERVICE_PATH = "transformer/test/data/META-INF/services/jakarta.sample.Writer";
 	public static final String[] JAKARTA_SAMPLE_WRITER_LINES = { "jakarta.sample.WriterImpl" };	
 
 	public static final String JAVAX_SAMPLE = "javax.sample";

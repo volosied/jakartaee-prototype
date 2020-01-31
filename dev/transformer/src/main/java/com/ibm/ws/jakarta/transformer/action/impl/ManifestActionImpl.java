@@ -57,11 +57,9 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 
 	//
 
-	public static final String MANIFEST_RESOURCE_NAME = "META-INF/MANIFEST.MF";
-	
 	@Override
 	public boolean accept(String resourceName) {
-		return resourceName.equals(MANIFEST_RESOURCE_NAME);
+		return resourceName.equals(META_INF_MANIFEST_MF);
 	}
 
 	//

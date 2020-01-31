@@ -57,23 +57,23 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 	}
 
 	protected void recordUnaccepted(String resourceName) {
-		verbose( "Resource [ %s ]: Unaccepted\n", resourceName );
+		verbose( "Resource [ %s ]: Not accepted\n", resourceName );
 
 		getChanges().record();
 	}
 
 	protected void recordUnselected(Action action, boolean hasChanges, String resourceName) {
 		verbose(
-			"Action [ %s ] Resource [ %s ]: Unselected\n",
-			action.getName(), resourceName );
+			"Resource [ %s ] Action [ %s ]: Accepted but not selected\n",
+			resourceName, action.getName() );
 
 		getChanges().record(action, hasChanges);
 	}
 
 	protected void recordTransform(Action action, String resourceName) {
 		verbose(
-			"Action [ %s ] Resource [ %s ]: Changes [ %s ]\n",
-			action.getName(), resourceName, action.hasChanges() );
+			"Resource [ %s ] Action [ %s ]: Changes [ %s ]\n",
+			resourceName, action.getName(), action.hasChanges() );
 
 		getChanges().record(action);
 	}

@@ -157,7 +157,31 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 			DataInput inputClassData = ByteBufferDataInput.wrap(inputBytes, 0, inputLength);
 			inputClass = ClassFile.parseClassFile(inputClassData); // throws IOException
 		} catch ( IOException e ) {
-			throw new JakartaTransformException("Failed to parse raw class bytes", e);
+			error("Failed to parse raw class bytes", e);
+			return null;
+		}
+
+		if ( getIsVerbose() ) {
+			verbose("Class [ %s ] as [ %s ]\n", inputName, inputClass.this_class);
+			verbose("  Super [ %s ]\n", inputClass.super_class);
+			if ( inputClass.interfaces != null ) {
+				verbose("  Interfaces [ %s ]\n", inputClass.interfaces.length);
+				for ( String interfaceName : inputClass.interfaces ) {
+					verbose("    [ %s ]\n", interfaceName);
+				}
+			}
+			if ( inputClass.fields != null ) {
+				verbose("  Fields [ %s ]\n", inputClass.fields.length);
+				for ( FieldInfo field : inputClass.fields ) {
+					verbose("    [ %s ] [ %s ]\n", field.name, field.descriptor);
+				}
+			}
+			if ( inputClass.methods != null ) {
+				verbose("  Methods [ %s ]\n", inputClass.methods.length);
+				for ( MethodInfo method : inputClass.methods) {
+					verbose("    [ %s ] [ %s ]\n", method.name, method.descriptor);
+				}
+			}
 		}
 
 		ClassFileBuilder classBuilder = new ClassFileBuilder(inputClass);
@@ -180,7 +204,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		setClassNames(inputClassName, outputClassName);
 		setResourceNames(inputName, outputName);
 
-		verbose("%s", classBuilder);
+		verbose("%s\n", classBuilder);
 
 		String inputSuperName = classBuilder.super_class(); 
 		if ( inputSuperName != null ) {
@@ -194,8 +218,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 			setSuperClassNames(inputSuperName, outputSuperName);
 
 			if ( !outputSuperName.equals("java/lang/Object") ) {
-				verbose("\n");
-				verbose(" extends %s", outputSuperName);
+				verbose(" extends %s\n", outputSuperName);
 			}
 		}
 
@@ -210,8 +233,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 				}
 			}
 
-			verbose("\n");
-			verbose(" implements %s", interfaces);
+			verbose(" implements %s\n", interfaces);
 		}
 
 		verbose("\n");
@@ -257,7 +279,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		}
 
 		MutableConstantPool constants = classBuilder.constant_pool();
-		verbose("    Constant Pool size: %s", constants.size()); 
+		verbose("    Constant Pool size: %s\n", constants.size()); 
 
 		int modifiedConstants = transform(constants);
 		if ( modifiedConstants > 0 ) {
@@ -265,7 +287,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		}
 
 		if ( !hasChanges() ) {
-			log("    Class size: %s", inputLength);
+			log("    Class size: %s\n", inputLength);
 			return null;
 		}
 
@@ -293,7 +315,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		String inputDescriptor = member.descriptor;
 		String outputDescriptor = transformDescriptor(inputDescriptor);
 		if ( outputDescriptor != null ) {
-			verbose("  %s %s -> %1$s %s\n%4$s", member.name, member.descriptor, outputDescriptor);
+			verbose("  %s %s -> %1$s %s\n%4$s\n", member.name, member.descriptor, outputDescriptor);
 		}
 
 		Attribute[] inputAttributes = member.attributes;

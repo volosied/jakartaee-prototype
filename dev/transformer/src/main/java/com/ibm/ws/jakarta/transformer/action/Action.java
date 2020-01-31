@@ -25,6 +25,31 @@ public interface Action {
 		return className.replace('.',  '/');
 	}
 
+	String MULTI_RELEASE_PREFIX = "META-INF/versions/";
+	int MULTI_RELEASE_PREFIX_LENGTH = 18;
+
+	public static String stripMultiRelease(String resourceName) {
+		if ( !resourceName.startsWith(MULTI_RELEASE_PREFIX) ) {
+			return null;
+		}
+
+		int nextSlash = resourceName.indexOf('/', MULTI_RELEASE_PREFIX_LENGTH);
+		if ( nextSlash == -1 ) {
+			return null;
+		} else if ( (nextSlash + 1) == resourceName.length() ) {
+			return null;
+		}
+
+		for ( int charNo = MULTI_RELEASE_PREFIX_LENGTH; charNo < nextSlash; charNo++ ) {
+			char versionChar = resourceName.charAt(charNo);
+			if ( (versionChar < '0') || (versionChar > '9') ) {
+				return null;
+			}
+		}
+
+		return resourceName.substring(nextSlash + 1);
+	}
+
 	//
 
 	/**
@@ -44,6 +69,19 @@ public interface Action {
 	 * @return The resource name obtained from the class name.
 	 */
 	String asResourceName(String className);
+
+	/**
+	 * Answer the binary type name which corresponds with a class name.
+	 * 
+	 * This replaces all '.' with '/'.  ".class" is not added.
+	 * 
+	 * The binary type name is used for selection.
+	 *
+	 * @param className The class name to convert to a binary type name.
+	 *
+	 * @return The converted class name.
+	 */
+	String asBinaryTypeName(String className);
 
 	//
 

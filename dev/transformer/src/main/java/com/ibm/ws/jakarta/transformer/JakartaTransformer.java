@@ -422,6 +422,12 @@ public class JakartaTransformer {
     	public String inputName;
     	public String outputName;
 
+        public File inputFile;
+        public String inputPath;
+        
+        public File outputFile;
+        public String outputPath;
+        
     	protected void setLogging() {
             if ( hasOption(AppOption.TERSE) ) {
             	isTerse = true;
@@ -497,12 +503,21 @@ public class JakartaTransformer {
     		} else {
           		logStream.println("Package Renames:");
     		}
-    		
+
     		if ( packageRenames.isEmpty() ) {
     			logStream.println("  [ ** NONE ** ]");
     		} else {
     			for ( Map.Entry<String, String> renameEntry : packageRenames.entrySet() ) {
         			logStream.println("  [ " + renameEntry.getKey() + " ]: [ " + renameEntry.getValue() + " ]");
+    			}
+    		}
+
+    		logStream.println("Package Versions:");
+    		if ( packageVersions.isEmpty() ) {
+    			logStream.println("  [ ** NONE ** ]");
+    		} else {
+    			for ( Map.Entry<String, String> versionEntry : packageVersions.entrySet() ) {
+        			logStream.println("  [ " + versionEntry.getKey() + " ]: [ " + versionEntry.getValue() + " ]");
     			}
     		}
     	}
@@ -593,31 +608,38 @@ public class JakartaTransformer {
             }
         }
 
-        protected void transform() throws JakartaTransformException {
-            File inputFile = new File(inputName);
-            String inputPath = inputFile.getAbsolutePath();
+        protected boolean validateFiles() {
+            inputFile = new File(inputName);
+            inputPath = inputFile.getAbsolutePath();
             info("Input path [ %s ]\n", inputPath);
 
-            File outputFile = new File(outputName);
-            String outputPath = outputFile.getAbsolutePath();
+            outputFile = new File(outputName);
+            outputPath = outputFile.getAbsolutePath();
             info("Output path [ %s ]\n", outputPath);
 
             if ( !inputFile.exists() ) {
-            	throw new JakartaTransformException("Input does not exist [ " + inputFile.getAbsolutePath() + " ]");
+            	error("Input does not exist [ " + inputFile.getAbsolutePath() + " ]\n");
+            	return false;
+
             } else if ( inputFile.isDirectory() ) {
-            	throw new JakartaTransformException("Input directories are not supported [ " + inputFile.getAbsolutePath() + " ]");
+            	error("Input directories are not supported [ " + inputFile.getAbsolutePath() + " ]\n");
+            	return false;
             }
 
             if ( outputFile.exists() ) {
-            	throw new JakartaTransformException("Output already exists [ " + outputFile.getAbsolutePath() + " ]");
+            	error("Output already exists [ " + outputFile.getAbsolutePath() + " ]\n");
+            	return false;
             }
 
+            return true;
+        }
+
+        protected void transform() throws JakartaTransformException {
             long inputLength = inputFile.length();
 
             try ( InputStream inputStream = IO.stream(inputFile) ) {
                 try ( OutputStream outputStream = IO.outputStream(outputFile) ) {
-                	transform(inputPath, inputStream, inputLength, outputPath, outputStream);
-                	// throws JakartaTransformException
+                	transform(inputStream, inputLength, outputStream); // throws JakartaTransformException
                 } catch ( IOException e ) {
                 	throw new JakartaTransformException("Failed to open input [ " + inputFile.getAbsolutePath() + " ]", e);
                 }
@@ -627,8 +649,8 @@ public class JakartaTransformer {
         }
 
         protected void transformClass(
-            	String inputPath, InputStream inputStream, long inputLength,
-            	String outputPath, OutputStream outputStream) throws JakartaTransformException {
+            	InputStream inputStream, long inputLength,
+            	OutputStream outputStream) throws JakartaTransformException {
 
     		int intLength = FileUtils.verifyArray(0, inputLength);
 
@@ -660,8 +682,8 @@ public class JakartaTransformer {
         }
 
         protected void transformServiceConfig(
-        	String inputPath, InputStream inputStream, long inputLength,
-            String outputPath, OutputStream outputStream) throws JakartaTransformException {
+        	InputStream inputStream, long inputLength,
+            OutputStream outputStream) throws JakartaTransformException {
 
     		int intLength = FileUtils.verifyArray(0, inputLength);
 
@@ -683,8 +705,8 @@ public class JakartaTransformer {
         }
 
         protected void transformManifest(
-            String inputPath, InputStream inputStream, long inputLength,
-            String outputPath, OutputStream outputStream) throws JakartaTransformException {
+            InputStream inputStream, long inputLength,
+            OutputStream outputStream) throws JakartaTransformException {
 
     		int intLength = FileUtils.verifyArray(0, inputLength);
 
@@ -706,8 +728,8 @@ public class JakartaTransformer {
         }
 
         protected void transformJar(
-    		String inputPath, InputStream inputStream, long inputLength,
-    		String outputPath, OutputStream outputStream) throws JakartaTransformException {
+    		InputStream inputStream, long inputLength,
+    		OutputStream outputStream) throws JakartaTransformException {
 
     		JarAction jarAction = new JarActionImpl(
             	getInfoStream(), isTerse, isVerbose,
@@ -727,7 +749,7 @@ public class JakartaTransformer {
             	int allUnchanged = jarChanges.getAllUnchanged();
             	int allChanged = jarChanges.getAllChanged();
 
-            	info( "  Selected [ %s ]\n", (allUnchanged + allChanged) );
+            	info( "  Accepted    [ %s ]\n", (allUnchanged + allChanged) );
             	info( "    Unchanged [ %s ]\n", allUnchanged );
             	info( "    Changed   [ %s ]\n", allChanged );
 
@@ -741,9 +763,9 @@ public class JakartaTransformer {
         }
 
     	protected void transformOther( 
-    		String inputPath, InputStream inputStream, long inputLength,
-    		String outputPath, OutputStream outputStream) throws JakartaTransformException {
-    		
+    		InputStream inputStream, long inputLength,
+    		OutputStream outputStream) throws JakartaTransformException {
+
     		info("Stub transfer [ " + inputPath + " ] to [ " + outputPath + " ]\n");
 
     		try {
@@ -756,30 +778,30 @@ public class JakartaTransformer {
     	}
 
         protected void transform(
-        	String inputPath, InputStream inputStream, long inputLength,
-        	String outputPath, OutputStream outputStream) throws JakartaTransformException {
+        	InputStream inputStream, long inputLength,
+        	OutputStream outputStream) throws JakartaTransformException {
 
         	if ( transformType == TransformType.CLASS ) {
-        		transformClass(inputPath, inputStream, inputLength, outputPath, outputStream);
+        		transformClass(inputStream, inputLength, outputStream);
         	} else if ( transformType == TransformType.SERVICE_CONFIG) {
-        		transformServiceConfig(inputPath, inputStream, inputLength, outputPath, outputStream);
+        		transformServiceConfig(inputStream, inputLength, outputStream);
         	} else if ( transformType == TransformType.MANIFEST) {
-        		transformManifest(inputPath, inputStream, inputLength, outputPath, outputStream);
+        		transformManifest(inputStream, inputLength, outputStream);
 
         	} else if ( transformType == TransformType.XML ) {
-        		transformOther(inputPath, inputStream, inputLength, outputPath, outputStream);
+        		transformOther(inputStream, inputLength, outputStream);
 
         	} else if ( transformType == TransformType.JAR ) {
-        		transformJar(inputPath, inputStream, inputLength, outputPath, outputStream);        		
+        		transformJar(inputStream, inputLength, outputStream);
 
         	} else if ( transformType == TransformType.ZIP ) {
-        		transformOther(inputPath, inputStream, inputLength, outputPath, outputStream);
+        		transformOther(inputStream, inputLength, outputStream);
         	} else if ( transformType == TransformType.WAR ) {
-        		transformOther(inputPath, inputStream, inputLength, outputPath, outputStream);
+        		transformOther(inputStream, inputLength, outputStream);
         	} else if ( transformType == TransformType.RAR) {
-        		transformOther(inputPath, inputStream, inputLength, outputPath, outputStream);
+        		transformOther(inputStream, inputLength, outputStream);
         	} else if ( transformType == TransformType.EAR ) {
-        		transformOther(inputPath, inputStream, inputLength, outputPath, outputStream);
+        		transformOther(inputStream, inputLength, outputStream);
 
         	} else {
         		throw new IllegalArgumentException("Unknown transform type [ " + transformType + " ]");
@@ -831,6 +853,10 @@ public class JakartaTransformer {
             return TRANSFORM_ERROR_RC;
         }
 
+        if ( !options.validateFiles() ) {
+            return TRANSFORM_ERROR_RC;
+        }
+        
         try {
         	options.transform(); // throws JakartaTransformException
 

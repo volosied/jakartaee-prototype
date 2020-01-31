@@ -60,8 +60,8 @@ public class TestTransformClass {
 	public Set<String> getIncludes() {
 		if ( includes == null ) {
 			includes = new HashSet<String>();
-			includes.add( Action.classNameToResourceName(JAVAX_CLASS_NAME) );
-			includes.add( Action.classNameToResourceName(JAKARTA_CLASS_NAME) );
+			includes.add( Action.classNameToBinaryTypeName(JAVAX_CLASS_NAME) );
+			includes.add( Action.classNameToBinaryTypeName(JAKARTA_CLASS_NAME) );
 		}
 
 		return includes;

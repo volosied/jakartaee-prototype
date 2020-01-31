@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
+import com.ibm.ws.jakarta.transformer.JakartaTransformProperties;
 import com.ibm.ws.jakarta.transformer.action.Action;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
@@ -46,7 +47,16 @@ public abstract class ActionImpl implements Action {
 		//
 
 		this.included = null;
+		this.includedExact = null;
+		this.includedHead = null;
+		this.includedTail = null;
+		this.includedAny = null;
+
 		this.excluded = null;
+		this.excludedExact = null;
+		this.excludedHead = null;
+		this.excludedTail = null;
+		this.excludedAny = null;
 
 		this.packageRenames = null;
 
@@ -110,7 +120,24 @@ public abstract class ActionImpl implements Action {
 		this.isVerbose = isVerbose;
 
 		this.included = new HashSet<String>(includes);
+		this.includedExact = new HashSet<String>();
+		this.includedHead = new HashSet<String>();
+		this.includedTail = new HashSet<String>();
+		this.includedAny = new HashSet<String>();
+
+		JakartaTransformProperties.processSelections(
+			this.included,
+			this.includedExact, this.includedHead, this.includedTail, this.includedAny );
+
 		this.excluded = new HashSet<String>(excludes);
+		this.excludedExact = new HashSet<String>();
+		this.excludedHead = new HashSet<String>();
+		this.excludedTail = new HashSet<String>();
+		this.excludedAny = new HashSet<String>();
+
+		JakartaTransformProperties.processSelections(
+			this.excluded,
+			this.excludedExact, this.excludedHead, this.excludedTail, this.excludedAny );
 
 		Map<String, String> useRenames = new HashMap<String, String>( renames.size() );
 
@@ -143,11 +170,11 @@ public abstract class ActionImpl implements Action {
 	}
 
 	public boolean getIsTerse() {
-		return ( (root == null) ? root.getIsTerse() : isTerse );
+		return ( (root != null) ? root.getIsTerse() : isTerse );
 	}
 
 	public boolean getIsVerbose() {
-		return ( (root == null) ? root.getIsVerbose() : isVerbose );
+		return ( (root != null) ? root.getIsVerbose() : isVerbose );
 	}
 
 	public void log(String text, Object... parms) {
@@ -170,13 +197,36 @@ public abstract class ActionImpl implements Action {
 		} else {
 			if ( (logStream != null) && isVerbose ) {
 				if ( parms.length == 0 ) {
-					logStream.println(text);
+					logStream.print(text);
 				} else {
 					logStream.printf(text, parms);
 				}
 			}
 		}
 	}
+
+    protected void error(String message, Object... parms) {
+    	if ( root != null ) {
+    		root.error(message, parms);
+    	} else {
+    		if ( logStream != null ) {
+    			if ( parms.length == 0 ) {
+    				logStream.print("ERROR: " + message);
+    			} else {
+    				logStream.printf("ERROR: " + message, parms);
+    			}
+    		}
+    	}
+    }
+
+    protected void error(String message, Throwable th, Object... parms) {
+    	if ( root != null ) {
+    		root.error(message, th, parms);
+    	} else {
+    		error(message, parms);
+    		th.printStackTrace( getLogStream() );
+    	}
+    }
 
 	//
 
@@ -215,9 +265,23 @@ public abstract class ActionImpl implements Action {
 	public String asResourceName(String className) {
 		return Action.classNameToResourceName(className);
 	}
+	
+	@Override
+	public String asBinaryTypeName(String className) {
+		return Action.classNameToBinaryTypeName(className);
+	}
 
 	private final Set<String> included;
+	private final Set<String> includedExact;
+	private final Set<String> includedHead;
+	private final Set<String> includedTail;
+	private final Set<String> includedAny;
+	
 	private final Set<String> excluded;
+	private final Set<String> excludedExact;
+	private final Set<String> excludedHead;
+	private final Set<String> excludedTail;	
+	private final Set<String> excludedAny;	
 
 	@Override
 	public boolean select(String resourceName) {
@@ -225,11 +289,78 @@ public abstract class ActionImpl implements Action {
 			return root.select(resourceName);
 
 		} else {
-			if ( !included.isEmpty() ) {
-				return included.contains(resourceName);
-			} else {
-				return !excluded.contains(resourceName);
+			boolean isIncluded = selectIncluded(resourceName);
+			boolean isExcluded = rejectExcluded(resourceName);
+
+			return ( isIncluded && !isExcluded );
+		}
+	}
+
+	public boolean selectIncluded(String resourceName) {
+		if ( included.isEmpty() ) {
+			verbose("Include [ %s ]: %s\n", resourceName, "No includes");
+			return true;
+
+		} else if ( includedExact.contains(resourceName) ) {
+			verbose("Include [ %s ]: %s\n", resourceName, "Exact include");
+			return true;
+
+		} else {
+			for ( String tail : includedHead ) {
+				if ( resourceName.endsWith(tail) ) {
+					verbose("Include [ %s ]: %s (%s)\n", resourceName, "Match tail", tail);
+					return true;
+				}
 			}
+			for ( String head : includedTail ) {
+				if ( resourceName.startsWith(head) ) {
+					verbose("Include [ %s ]: %s (%s)\n", resourceName, "Match head", head);
+					return true;
+				}
+			}
+			for ( String middle : includedAny ) {
+				if ( resourceName.contains(middle) ) {
+					verbose("Include [ %s ]: %s (%s)\n", resourceName, "Match middle", middle);
+					return true;
+				}
+			}
+
+			verbose("Do not include [ %s ]");
+			return false;
+		}
+	}
+
+	public boolean rejectExcluded(String resourceName ) {
+		if ( excluded.isEmpty() ) {
+			verbose("Do not exclude[ %s ]: %s\n", resourceName, "No excludes");
+			return false;
+
+		} else if ( excludedExact.contains(resourceName) ) {
+			verbose("Exclude [ %s ]: %s\n", resourceName, "Exact exclude");
+			return true;
+
+		} else {
+			for ( String tail : excludedHead ) {
+				if ( resourceName.endsWith(tail) ) {
+					verbose("Exclude[ %s ]: %s (%s)\n", resourceName, "Match tail", tail);
+					return true;
+				}
+			}
+			for ( String head : excludedTail ) {
+				if ( resourceName.startsWith(head) ) {
+					verbose("Exclude[ %s ]: %s (%s)\n", resourceName, "Match head", head);
+					return true;
+				}
+			}
+			for ( String middle : excludedAny ) {
+				if ( resourceName.contains(middle) ) {
+					verbose("Exclude[ %s ]: %s (%s)\n", resourceName, "Match middle", middle);
+					return true;
+				}
+			}
+			
+			verbose("Do not exclude[ %s ]");
+			return false;
 		}
 	}
 
@@ -884,8 +1015,15 @@ public abstract class ActionImpl implements Action {
 		ByteData inputData = read(inputName, inputStream, inputCount);
 		// throws JakartaTransformException
 
-		ByteData outputData = apply(inputName, inputData.data, inputData.length);
-		// throws JakartaTransformException
+		ByteData outputData;
+
+		try {
+			outputData = apply(inputName, inputData.data, inputData.length);
+			// throws JakartaTransformException
+		} catch ( Throwable th ) {
+			error("Transform failure [ %s ]", th, inputName);
+			outputData = null;			
+		}
 
 		if ( outputData == null ) {
 			outputData = inputData;
@@ -902,8 +1040,15 @@ public abstract class ActionImpl implements Action {
 		ByteData inputData = read(inputName, inputStream, inputCount);
 		// throws JakartaTransformException
 
-		ByteData outputData = apply(inputName, inputData.data, inputData.length);
-		// throws JakartaTransformException
+		ByteData outputData;
+		
+		try {
+			outputData = apply(inputName, inputData.data, inputData.length);
+			// throws JakartaTransformException
+		} catch ( Throwable th ) {
+			error("Transform failure [ %s ]", th, inputName);
+			outputData = null;
+		}
 
 		boolean hasChanges;
 		if ( outputData == null ) {

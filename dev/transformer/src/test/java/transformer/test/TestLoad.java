@@ -10,14 +10,40 @@ import com.ibm.ws.jakarta.transformer.JakartaTransformer;
 
 public class TestLoad {
 
-	public static final String RULES_PATH =
+	public static final String RULES_RENAMES_PATH =
 		JakartaTransformer.DEFAULT_RENAMES_REFERENCE;
+
+	public static final String RULES_SELECTIONS_PATH =
+		JakartaTransformer.DEFAULT_SELECTIONS_REFERENCE;
+
+	public static final String RULES_VERSIONS_PATH =
+		JakartaTransformer.DEFAULT_VERSIONS_REFERENCE;
+
+	public static final String TRANSFORMER_PREFIX;
+
+	static {
+		String transformerPackageName = JakartaTransformer.class.getPackage().getName();
+		TRANSFORMER_PREFIX = transformerPackageName.replace('.',  '/') + '/';
+	}
+
+	public static String putIntoTransformer(String path) {
+		return TRANSFORMER_PREFIX + path;
+	}
 
 	@Test
 	public void testRulesLoad() throws IOException {
-		System.out.println("Load [ " + RULES_PATH + " ]");
+		testLoad(RULES_SELECTIONS_PATH);
+		testLoad(RULES_RENAMES_PATH);
+		testLoad(RULES_VERSIONS_PATH);
+	}
 
-		InputStream simpleInput = TestUtils.getResourceStream(RULES_PATH);
+	public void testLoad(String path) throws IOException {
+		System.out.println("Load [ " + path + " ]");
+		String qualifiedRulesPath = putIntoTransformer(path);
+
+		System.out.println("Load (Qualified) [ " + qualifiedRulesPath + " ]");
+
+		InputStream simpleInput = TestUtils.getResourceStream(qualifiedRulesPath);
 
 		List<String> actualLines;
 		try {
@@ -26,13 +52,13 @@ public class TestLoad {
 			simpleInput.close();
 		}
 
-		System.out.println("Loaded [ " + RULES_PATH + " ] [ " + actualLines.size() + " ]");
+		System.out.println("Loaded [ " + path + " ] [ " + actualLines.size() + " ]");
 		for ( String line : actualLines ) {
 			System.out.println(" [ " + line + " ]");
 		}
 	}
 
-	public static final String SIMPLE_RESOURCE_PATH = "transform/test/data/simple.resource";
+	public static final String SIMPLE_RESOURCE_PATH = "transformer/test/data/simple.resource";
 	public static final String[] SIMPLE_RESOURCE_LINES = {
 		"Simple Resource 1",
 		"Simple Resource 2"

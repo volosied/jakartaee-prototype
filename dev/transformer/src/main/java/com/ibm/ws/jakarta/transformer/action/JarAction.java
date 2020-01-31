@@ -13,5 +13,5 @@ public interface JarAction extends Action {
 		throws JakartaTransformException;
 
 	@Override
-	JarChanges getChanges();	
+	JarChanges getChanges();
 }

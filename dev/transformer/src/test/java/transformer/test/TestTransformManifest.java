@@ -18,7 +18,7 @@ import com.ibm.ws.jakarta.transformer.action.impl.ManifestActionImpl;
 import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
 public class TestTransformManifest {
-	public static final String TEST_MANIFEST_PATH = "transform/test/data/META-INF/MANIFEST.MF";
+	public static final String TEST_MANIFEST_PATH = "transformer/test/data/META-INF/MANIFEST.MF";
 
 	public static final String JAVAX_SERVLET = "javax.servlet";
 	public static final String JAVAX_SERVLET_ANNOTATION = "javax.servlet.annotation";

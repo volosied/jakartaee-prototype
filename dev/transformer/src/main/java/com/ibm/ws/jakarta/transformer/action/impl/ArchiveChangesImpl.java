@@ -129,10 +129,10 @@ public class ArchiveChangesImpl extends ChangesImpl implements ArchiveChanges {
 			allUnchanged++;
 			target = unchangedByAction;
 		}
-		
+
 		int[] changes = target.get(name);
 		if ( changes == null ) {
-			changes = new int[1];
+			changes = new int[] { 1 };
 			target.put(name, changes);
 		} else {
 			changes[0]++;

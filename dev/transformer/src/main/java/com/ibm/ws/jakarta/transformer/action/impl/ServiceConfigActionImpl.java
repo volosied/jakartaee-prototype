@@ -75,9 +75,6 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 
 	//
 
-	public static final String META_INF = "META-INF/";
-	public static final String META_INF_SERVICES = "META-INF/services/";
-
 	@Override
 	public boolean accept(String resourceName) {
 		return resourceName.startsWith(META_INF_SERVICES);

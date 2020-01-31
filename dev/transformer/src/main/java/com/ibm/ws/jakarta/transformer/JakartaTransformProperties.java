@@ -13,6 +13,9 @@ public class JakartaTransformProperties {
 	/** Prefix character for resources which are to be excluded. */
 	public static final char RESOURCE_EXCLUSION_PREFIX = '!';
 
+	/** Used to demark head and tail regions in resource selections. */
+	public static final char RESOURCE_WILDCARD = '*';
+
 	//
 
 	public static void setSelections(
@@ -25,6 +28,33 @@ public class JakartaTransformProperties {
 				excluded.add( selection.substring(1) );
 			} else {
 				included.add(selection);
+			}
+		}
+	}
+
+	public static void processSelections(
+		Set<String> selections,
+		Set<String> selectionsExact,
+		Set<String> selectionsHead,
+		Set<String> selectionsTail,
+		Set<String> selectionsAny ) {
+
+		for ( String selection : selections ) {
+			int selectionLength = selection.length();
+
+			boolean matchHead = ( selection.charAt(0) == RESOURCE_WILDCARD );
+			boolean matchTail = ( selection.charAt(selectionLength - 1) == RESOURCE_WILDCARD );
+
+			if ( matchHead ) {
+				if ( matchTail ) {
+					selectionsAny.add( selection.substring(1, selectionLength - 1) );
+				} else {
+					selectionsHead.add( selection.substring(1) );
+				}
+			} else if ( matchTail ) {
+				selectionsTail.add( selection.substring(0, selectionLength - 1) );
+			} else {
+				selectionsExact.add(selection);
 			}
 		}
 	}
