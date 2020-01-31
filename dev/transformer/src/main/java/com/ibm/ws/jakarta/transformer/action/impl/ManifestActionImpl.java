@@ -59,7 +59,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 
 	@Override
 	public boolean accept(String resourceName) {
-		return resourceName.equals(META_INF_MANIFEST_MF);
+		return resourceName.contains(MANIFEST_MF);
 	}
 
 	//
