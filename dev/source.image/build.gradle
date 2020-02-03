@@ -32,7 +32,7 @@ repositories {
 }
 
 dependencies {
-   libertyRuntime 'io.openliberty:openliberty-webProfile8:19.0.0.12'
+   libertyRuntime 'io.openliberty:openliberty-webProfile8:20.0.0.1'
 }
 
 liberty {
