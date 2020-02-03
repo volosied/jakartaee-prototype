@@ -47,6 +47,8 @@ public class FileUtils {
 			throw new IllegalArgumentException("Array length [ " + maxCount + " ] from offset [ " + offset + " ] and fill amount [ " + intCount + " ] greater than [ " + MAX_ARRAY_LENGTH + " ]");
 		}
 
+		// System.out.println("Count [ " + count + " ] Adjusted to [ " + intCount + " ]");
+
 		return intCount;
 	}
 
@@ -96,7 +98,19 @@ public class FileUtils {
 				buffer = new byte[count];
 			}
 
-			inputStream.read(buffer, 0, count); // throws IOException
+			int offset = 0;
+			int remaining = count;
+
+			while ( remaining > 0 ) {
+				int actual = inputStream.read(buffer, offset, remaining); // throws IOException
+				if ( actual == -1 ) {
+					throw new IOException("Premature end-of-stream [ " + inputName + " at [ " + offset + " ] requested [ " + remaining + " ]");
+				}
+
+				// System.out.println("Read requested [ " + inputName + " ] [ " + remaining + " ] actual [ " + actual + " ]");
+				offset += actual;
+				remaining -= actual;
+			}
 
 			return new ByteData(inputName, buffer, 0, count);
 		}
@@ -112,7 +126,7 @@ public class FileUtils {
         int bytesUsed = 0;
 		int bytesRemaining = buffer.length;
 
-        int bytesRead = 0;
+        int bytesRead;
         while ( (bytesRead = inputStream.read(buffer, bytesUsed, bytesRemaining)) != -1 ) { // throws IOEXception
         	bytesUsed += bytesRead;
         	bytesRemaining -= bytesRead;
@@ -123,7 +137,7 @@ public class FileUtils {
         			if ( inputStream.read() == -1 ) {
         				break;
         			} else {
-        				throw new IOException("Read overflow after reading [ " + bytesUsed + " ] bytes");
+        				throw new IOException("Overflow of [ " + inputName + " ] after reading [ " + bytesUsed + " ] bytes");
         			} 
         		} else if ( bytesAdded > BUFFER_ADJUSTMENT ) {
         			bytesAdded = BUFFER_ADJUSTMENT;

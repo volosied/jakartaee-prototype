@@ -1,10 +1,11 @@
 package com.ibm.ws.jakarta.transformer.action;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 
+import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
-
-import java.io.IOException;
+import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
 public interface Action {
 
@@ -22,6 +23,31 @@ public interface Action {
 
 	public static String classNameToBinaryTypeName(String className) {
 		return className.replace('.',  '/');
+	}
+
+	String MULTI_RELEASE_PREFIX = "META-INF/versions/";
+	int MULTI_RELEASE_PREFIX_LENGTH = 18;
+
+	public static String stripMultiRelease(String resourceName) {
+		if ( !resourceName.startsWith(MULTI_RELEASE_PREFIX) ) {
+			return null;
+		}
+
+		int nextSlash = resourceName.indexOf('/', MULTI_RELEASE_PREFIX_LENGTH);
+		if ( nextSlash == -1 ) {
+			return null;
+		} else if ( (nextSlash + 1) == resourceName.length() ) {
+			return null;
+		}
+
+		for ( int charNo = MULTI_RELEASE_PREFIX_LENGTH; charNo < nextSlash; charNo++ ) {
+			char versionChar = resourceName.charAt(charNo);
+			if ( (versionChar < '0') || (versionChar > '9') ) {
+				return null;
+			}
+		}
+
+		return resourceName.substring(nextSlash + 1);
 	}
 
 	//
@@ -45,6 +71,30 @@ public interface Action {
 	String asResourceName(String className);
 
 	/**
+	 * Answer the binary type name which corresponds with a class name.
+	 * 
+	 * This replaces all '.' with '/'.  ".class" is not added.
+	 * 
+	 * The binary type name is used for selection.
+	 *
+	 * @param className The class name to convert to a binary type name.
+	 *
+	 * @return The converted class name.
+	 */
+	String asBinaryTypeName(String className);
+
+	//
+
+	/**
+	 * Answer a short name for this action.  This must be unique among
+	 * the collection of actions in use, and will be used to record change
+	 * information.
+	 *
+	 * @return A unique short name for this action.
+	 */
+	String getName();
+
+	/**
 	 * Tell if a resource is to be transformed.
 	 *
 	 * @param resourceName The name of the resource.
@@ -53,32 +103,114 @@ public interface Action {
 	 */
 	boolean select(String resourceName);
 
+	//
+
 	/**
-	 * Tell if a class is to be transformed.
+	 * Tell if a resource is of a type which is handled by this action.
 	 *
-	 * @param className The name of the class.
+	 * @param resourceName The name of the resource.
 	 *
-	 * @return True or false telling if the class is to be transformed.
+	 * @return True or false telling if the resource can be handled by this action.
 	 */
-	boolean selectClass(String className);
+	boolean accept(String resourceName);
 
 	//
 
-	int UNKNOWN_LENGTH = -1;
+	/**
+	 * Apply this action on an input stream.
+	 *
+	 * Answer a data structure containing output data.  The output data
+	 * will be the original data if the input stream if this action declined
+	 * to process the input data.
+	 *
+	 * @param inputName A name associated with the input data.
+	 * @param inputStream A stream containing input data.
+	 *g
+	 * @return Transformed input data.
+	 *
+	 * @throws JakartaTransformException Thrown if the transform failed. 
+	 */
+	InputStreamData apply(String inputName, InputStream inputStream)
+		throws JakartaTransformException;
 
 	/**
-	 * Read bytes from an input stream.  Answer byte data and
-	 * a count of bytes read.
+	 * Apply this action on an input stream.
 	 *
-	 * @param inputName The name of the input stream.
-	 * @param inputStream A stream to be read.
-	 * @param inputCount The count of bytes to read from the stream.
-	 *     {@link Action#UNKNOWN_LENGTH} if the count of
-	 *     input bytes is not known.
+	 * Answer a data structure containing output data.  The output data
+	 * will be the original data if the input stream if this action declined
+	 * to process the input data.
 	 *
-	 * @return Byte data from the read.
-	 * 
-	 * @throws IOException Indicates a read failure.
+	 * The input count may be {@link InputStreamData#UNKNOWN_LENGTH}, in which
+	 * case all available data will be read from the input stream.
+	 *
+	 * @param inputName A name associated with the input data.
+	 * @param inputStream A stream containing input data.
+	 * @param inputCount The count of bytes available in the input stream.
+	 *
+	 * @return Transformed input data.
+	 *
+	 * @throws JakartaTransformException Thrown if the transform failed. 
 	 */
-	ByteData read(String inputName, InputStream inputStream, int inputCount) throws IOException;
+	InputStreamData apply(String inputName, InputStream inputStream, int inputCount)
+		throws JakartaTransformException;
+
+	/**
+	 * Apply this action on an input stream.
+	 *
+	 * Write transformed data to the output stream.
+	 *
+	 * The input count may be {@link InputStreamData#UNKNOWN_LENGTH}, in which
+	 * case all available data will be read from the input stream.
+	 *
+	 * @param inputName A name associated with the input data.
+	 * @param inputStream A stream containing input data.
+	 * @param inputCount The count of bytes available in the input stream.
+	 * @param outputStream A stream to which to write transformed data.
+	 *
+	 * @return True or false telling if any changes were made to the input
+	 *     data.
+	 *
+	 * @throws JakartaTransformException Thrown if the transform failed. 
+	 */	
+	boolean apply(String inputName, InputStream inputStream, int inputCount, OutputStream outputStream)
+		throws JakartaTransformException;
+
+	/**
+	 * Apply this action on an input bytes.
+	 *
+	 * Answer transformed bytes.  Answer null if no changes were made
+	 * by this action.
+	 *
+	 * @param inputName A name associated with the input data.
+	 * @param inputBytes Input data.
+	 * @param inputCount The count of input bytes.  This will often be
+	 *     different than the length of the input data array.
+	 *
+	 * @return Transformed bytes.  Null if this action made no changes to
+	 *     the input data.
+	 *
+	 * @throws JakartaTransformException Thrown if the transform failed. 
+	 */
+	ByteData apply(String inputName, byte[] inputBytes, int inputLength) throws JakartaTransformException;
+
+	//
+
+	/**
+	 * Answer changes recorded during the most recent application
+	 * of this action.
+	 *
+	 * Each call to the same action instance obtains the same change instance.
+	 *  
+	 * @return The changes recorded during the most recent application
+	 *     of this action.
+	 */
+	Changes getChanges();
+
+	/**
+	 * Tell if the last application of this action had changes.
+	 * 
+	 * @return True or false telling if the last application of this action
+	 *     had changes.
+	 */
+	boolean hasChanges();
 }
