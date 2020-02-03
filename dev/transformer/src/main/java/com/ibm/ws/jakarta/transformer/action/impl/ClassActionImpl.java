@@ -72,6 +72,27 @@ import aQute.lib.io.ByteBufferDataOutput;
  */
 public class ClassActionImpl extends ActionImpl implements ClassAction {
 
+	protected static final int DUMP_WIDTH = 16;
+
+	protected void dump(byte[] bytes, int offset, int length) {
+		PrintStream useOutput = getLogStream();
+
+		while ( length > 0 ) {
+			int nextWidth = ( (length > DUMP_WIDTH) ? DUMP_WIDTH : length );
+			dumpLine(bytes, offset, nextWidth, useOutput);
+			offset += nextWidth;
+			length -= nextWidth;
+		}
+	}
+
+	protected void dumpLine(byte[] bytes, int offset, int width, PrintStream useOutput) {
+		for ( int byteNo = 0; byteNo < width; byteNo++ ) {
+			byte nextByte = bytes[ offset + byteNo ];
+			useOutput.printf("%02x", nextByte);
+		}
+		useOutput.println();
+	}
+
 	public ClassActionImpl(ActionImpl parentAction) {
 		super(parentAction);
 	}
@@ -152,12 +173,17 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 
 		clearChanges();
 
+		if ( getIsVerbose() ) {
+			verbose("Read [ %s ] Bytes [ %s ] [ %s ]\n", inputName, inputLength, inputBytes);
+			// dump(inputBytes, 0, inputLength);
+		}
+
 		ClassFile inputClass;
 		try {
 			DataInput inputClassData = ByteBufferDataInput.wrap(inputBytes, 0, inputLength);
 			inputClass = ClassFile.parseClassFile(inputClassData); // throws IOException
 		} catch ( IOException e ) {
-			error("Failed to parse raw class bytes", e);
+			error("Failed to parse raw class bytes [ %s ]\n", e, inputName);
 			return null;
 		}
 
@@ -263,7 +289,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 			}
 		}
 
-		verbose("  <<class>>\n");
+		// verbose("  <<class>>\n");
 
 		// Transform attributes ...
 
@@ -287,7 +313,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		}
 
 		if ( !hasChanges() ) {
-			log("    Class size: %s\n", inputLength);
+			log("    Class size: %s %s\n", inputName, inputLength);
 			return null;
 		}
 
@@ -301,7 +327,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		}
 
 		byte[] outputBytes = outputClassData.toByteArray();
-		log("    Class size: %s -> %s\n", inputBytes.length, outputBytes.length);
+		log("    Class size: %s: %s -> %s\n", inputName, inputBytes.length, outputBytes.length);
 		return new ByteData(outputName, outputBytes, 0, outputBytes.length);
 	}
 
@@ -315,7 +341,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		String inputDescriptor = member.descriptor;
 		String outputDescriptor = transformDescriptor(inputDescriptor);
 		if ( outputDescriptor != null ) {
-			verbose("  %s %s -> %1$s %s\n%4$s\n", member.name, member.descriptor, outputDescriptor);
+			verbose("  %s %s -> %s\n", member.name, member.descriptor, outputDescriptor);
 		}
 
 		Attribute[] inputAttributes = member.attributes;

@@ -19,6 +19,8 @@ public class ArchiveChangesImpl extends ChangesImpl implements ArchiveChanges {
 		this.allChanged = 0;
 		this.allUnchanged = 0;
 
+		this.allSelected = 0;
+		this.allUnselected = 0;
 		this.allResources = 0;
 	}
 
@@ -37,6 +39,8 @@ public class ArchiveChangesImpl extends ChangesImpl implements ArchiveChanges {
 		allChanged = 0;
 		allUnchanged = 0;
 
+		allSelected = 0;
+		allUnselected = 0;
 		allResources = 0;
 
 		super.clearChanges();
@@ -50,10 +54,12 @@ public class ArchiveChangesImpl extends ChangesImpl implements ArchiveChanges {
 	private int allUnchanged;
 	private int allChanged;
 
+	private int allSelected;
+	private int allUnselected;	
 	private int allResources;
 
 	//
-	
+
 	@Override
 	public Set<String> getActionNames() {
 		Set<String> changedNames = changedByAction.keySet();
@@ -73,6 +79,16 @@ public class ArchiveChangesImpl extends ChangesImpl implements ArchiveChanges {
 	@Override
 	public int getAllResources() {
 		return allResources;
+	}
+
+	@Override
+	public int getAllUnselected() {
+		return allUnselected;
+	}
+
+	@Override
+	public int getAllSelected() {
+		return allSelected;
 	}
 
 	@Override
@@ -120,6 +136,7 @@ public class ArchiveChangesImpl extends ChangesImpl implements ArchiveChanges {
 	@Override
 	public void record(String name, boolean hasChanges) {
 		allResources++;
+		allSelected++;
 
 		Map<String, int[]> target;
 		if ( hasChanges ) {
@@ -142,5 +159,6 @@ public class ArchiveChangesImpl extends ChangesImpl implements ArchiveChanges {
 	@Override
 	public void record() {
 		allResources++;
+		allUnselected++;
 	}
 }

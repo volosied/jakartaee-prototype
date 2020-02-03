@@ -77,15 +77,7 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 
 	@Override
 	public boolean accept(String resourceName) {
-		return resourceName.startsWith(META_INF_SERVICES);
-	}
-
-	public String asInnerName(String outerName) {
-		return outerName.substring( outerName.length() - META_INF_SERVICES.length() );
-	}
-
-	public String asOuterName(String innerName) {
-		return META_INF_SERVICES + innerName;
+		return resourceName.contains(META_INF_SERVICES);
 	}
 
 	//
@@ -102,7 +94,8 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 		try {
 			inputReader = new InputStreamReader(inputStream, "UTF-8");
 		} catch ( UnsupportedEncodingException e ) {
-			throw new JakartaTransformException("Strange: UTF-8 is an unrecognized encoding for reading", e);
+			error("Strange: UTF-8 is an unrecognized encoding for reading [ %s ]\n", e, inputName);
+			return null;
 		}
 
 		BufferedReader reader = new BufferedReader(inputReader);
@@ -112,7 +105,8 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 		try {
 			outputWriter = new OutputStreamWriter(outputStream, "UTF-8");
 		} catch ( UnsupportedEncodingException e ) {
-			throw new JakartaTransformException("Strange: UTF-8 is an unrecognized encoding for writing", e);
+			error("Strange: UTF-8 is an unrecognized encoding for writing [ %s ]\n", e, inputName);
+			return null;
 		}
 
 		BufferedWriter writer = new BufferedWriter(outputWriter);
@@ -120,12 +114,15 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 		try {
 			transform(reader, writer); // throws IOException
 		} catch ( IOException e ) {
-			throw new JakartaTransformException("Failed to transform [ " + inputName + " ]", e);
+			error("Failed to transform [ %s ]\n", e, inputName);
+			return null;
 		}
+
 		try {
 			writer.flush(); // throws
 		} catch ( IOException e ) {
-			throw new JakartaTransformException("Strange: Failed to flush writer", e);
+			error("Failed to flush [ %s ]\n", e, inputName);
+			return null;
 		}
 
 		if ( !hasChanges() ) {

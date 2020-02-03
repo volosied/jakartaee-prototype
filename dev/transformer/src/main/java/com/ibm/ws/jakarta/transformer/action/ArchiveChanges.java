@@ -5,6 +5,9 @@ import java.util.Set;
 public interface ArchiveChanges extends Changes {
 	int getAllResources();
 
+	int getAllUnselected();
+	int getAllSelected();
+
 	int getAllUnchanged();
 	int getAllChanged();
 

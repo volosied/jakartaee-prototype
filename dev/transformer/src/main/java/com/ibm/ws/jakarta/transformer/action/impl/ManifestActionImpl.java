@@ -74,37 +74,37 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 		InputStream inputStream = new ByteArrayInputStream(inputBytes, 0, inputCount);
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(inputCount);
 
-		transform(inputName, inputStream, outputStream);
-
-		if ( !hasChanges() ) {
+		if ( !transform(inputName, inputStream, outputStream) ) {
 			return null;
-
-		} else {
-			byte[] outputBytes = outputStream.toByteArray();
-			return new ByteData(inputName, outputBytes, 0, outputBytes.length);
 		}
+
+		byte[] outputBytes = outputStream.toByteArray();
+		return new ByteData(inputName, outputBytes, 0, outputBytes.length);
 	}
 
-	public void transform(String inputName, InputStream inputStream, OutputStream outputStream)
-		throws JakartaTransformException {
-
+	protected boolean transform(String inputName, InputStream inputStream, OutputStream outputStream) {
 		Manifest initialManifest;
 		try {
 			initialManifest = new Manifest(inputStream);
 		} catch ( IOException e ) {
-			throw new JakartaTransformException("Failed to read manifest [ " + inputName + " ]", e);
+			error("Failed to read manifest [ %s ]\n", e, inputName);
+			return false;
 		}
 
 		Manifest finalManifest = new Manifest();
 
 		transform(inputName, initialManifest, finalManifest);
 
-		if ( hasChanges() ) {
-			try {
-				finalManifest.write(outputStream);
-			} catch ( IOException e ) {
-				throw new JakartaTransformException("Failed to write manifest [ " + inputName + " ]", e);
-			}
+		if ( !hasChanges() ) {
+			return false;
+		}
+
+		try {
+			finalManifest.write(outputStream);
+			return true;
+		} catch ( IOException e ) {
+			error("Failed to write manifest [ %s ]\n", e, inputName);
+			return false;
 		}
 	}
 
@@ -112,19 +112,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 		Attributes initialMainAttributes = initialManifest.getMainAttributes();
 		Attributes finalMainAttributes = finalManifest.getMainAttributes();
 
-		for ( Map.Entry<Object, Object> mainEntries : initialMainAttributes.entrySet() ) {
-			Attributes.Name mainKey = (Attributes.Name) mainEntries.getKey();
-			String initialMainValue = (String) mainEntries.getValue();
-
-			String finalMainValue = replaceEmbeddedPackages(initialMainValue);
-			if ( finalMainValue == null ) {
-				finalMainValue = initialMainValue;
-			} else {
-				addReplacement();
-			}
-
-			finalMainAttributes.put(mainKey, finalMainValue);
-		}
+		transform(initialMainAttributes, finalMainAttributes);
 
 		Map<String, Attributes> initialEntries = initialManifest.getEntries();
 		Map<String, Attributes> finalEntries = finalManifest.getEntries();

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.file.attribute.FileTime;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
@@ -169,6 +170,30 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 				} else {
 					long inputLength = inputEntry.getSize();
 
+					verbose("[ %s.%s ] [ %s ] Size [ %s ]\n",
+						getClass().getSimpleName(), "applyJar", inputName, inputLength);
+
+//					if ( getIsVerbose() ) {
+//						long inputCRC = inputEntry.getCrc();
+//
+//						int inputMethod = inputEntry.getMethod();
+//						long inputCompressed = inputEntry.getCompressedSize();
+//
+//						FileTime inputCreation = inputEntry.getCreationTime();
+//						FileTime inputAccess = inputEntry.getLastAccessTime();
+//						FileTime inputModified = inputEntry.getLastModifiedTime();
+//
+//						String className = getClass().getSimpleName();
+//						String methodName = "applyJar";
+//
+//						verbose("[ %s.%s ] [ %s ] Size [ %s ] CRC [ %s ]\n",
+//							className, methodName, inputName, inputLength, inputCRC);
+//						verbose("[ %s.%s ] [ %s ] Compressed size [ %s ] Method [ %s ]\n",
+//								className, methodName, inputName, inputCompressed, inputMethod);
+//						verbose("[ %s.%s ] [ %s ] Created [ %s ] Accessed [ %s ] Modified [ %s ]\n",
+//								className, methodName, inputName, inputCreation, inputAccess, inputModified);
+//					}
+
 					int intInputLength;
 					if ( inputLength == -1L ) {
 						intInputLength = -1;
@@ -176,9 +201,7 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 						intInputLength = FileUtils.verifyArray(0, inputLength);
 					}
 
-					InputStreamData outputData;
-
-					outputData = selectedAction.apply(inputName, jarInputStream, intInputLength);
+					InputStreamData outputData = selectedAction.apply(inputName, jarInputStream, intInputLength);
 
 					recordTransform(selectedAction, inputName);
 

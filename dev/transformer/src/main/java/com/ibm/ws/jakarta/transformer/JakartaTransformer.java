@@ -727,6 +727,11 @@ public class JakartaTransformer {
     		}
         }
 
+        private static final String DASH_LINE =
+        	"================================================================================\n";
+        private static final String JAR_LINE =
+        	"[ %22s ] [ %6s ] %10s [ %6s ] %8s [ %6s ]\n";
+
         protected void transformJar(
     		InputStream inputStream, long inputLength,
     		OutputStream outputStream) throws JakartaTransformException {
@@ -740,25 +745,44 @@ public class JakartaTransformer {
             if ( jarAction.hasChanges() ) {
             	JarChanges jarChanges = jarAction.getChanges();
 
-            	info( "Jar name [ %s ] [ %s ]\n",
-            		jarChanges.getInputResourceName(),
-                	jarChanges.getOutputResourceName() );
+//            	================================================================================
+//            	[ Jar Input  ] [ c:\dev\jakarta-repo-pub\jakartaee-prototype\dev\transformer\app\test.jar ]
+//            	[ Jar Output ] [ c:\dev\jakarta-repo-pub\jakartaee-prototype\dev\transformer\app\testOutput.jar ]
+//            	================================================================================  
+//            	[          All Resources ] [     55 ] Unselected [      6 ] Selected [     49 ]
+//            	================================================================================  
+//            	[            All Actions ] [     49 ]   Unchangd [     43 ]  Changed [      6 ]
+//            	[           Class Action ] [     41 ]  Unchanged [     38 ]  Changed [      3 ]
+//            	[        Manifest Action ] [      1 ]  Unchanged [      0 ]  Changed [      1 ]
+//            	[  Service Config Action ] [      7 ]  Unchanged [      5 ]  Changed [      2 ]
+//            	================================================================================
 
-            	info( "  Resources   [ %s ]\n", jarChanges.getAllResources() );
+            	info( DASH_LINE );
+            	info( "[ Jar Input  ] [ %s ]\n", jarChanges.getInputResourceName() );
+            	info( "[ Jar Output ] [ %s ]\n", jarChanges.getOutputResourceName() );
 
-            	int allUnchanged = jarChanges.getAllUnchanged();
-            	int allChanged = jarChanges.getAllChanged();
+            	info( DASH_LINE );
+            	info( JAR_LINE,
+            		"All Resources", jarChanges.getAllResources(),
+            		"Unselected", jarChanges.getAllUnselected(),
+            		"Selected", jarChanges.getAllSelected() );
 
-            	info( "  Accepted    [ %s ]\n", (allUnchanged + allChanged) );
-            	info( "    Unchanged [ %s ]\n", allUnchanged );
-            	info( "    Changed   [ %s ]\n", allChanged );
+            	info( DASH_LINE );
+            	info( JAR_LINE,
+            		"All Actions", jarChanges.getAllSelected(),
+            		"Unchangdd", jarChanges.getAllUnchanged(),
+            		"Changed", jarChanges.getAllChanged());
 
-            	for ( String actionName : jarChanges.getActionNames() ) { 
-            		info( "  [ %s ] Unchanged [ %s ] Changed [ %s ]\n",
-            			actionName,
-            			jarChanges.getUnchanged(actionName),
-            			jarChanges.getChanged(actionName) );
+            	for ( String actionName : jarChanges.getActionNames() ) {
+            		int unchangedByAction = jarChanges.getUnchanged(actionName); 
+            		int changedByAction = jarChanges.getChanged(actionName);
+            		info(JAR_LINE,
+            			actionName, unchangedByAction + changedByAction,
+            			"Unchanged", unchangedByAction,
+            			"Changed", changedByAction);
             	}
+
+            	info( DASH_LINE );
             }
         }
 
@@ -818,14 +842,25 @@ public class JakartaTransformer {
             return PARSE_ERROR_RC;
         }
 
-        if ( hasOption(AppOption.HELP) ) {
+        if ( hasOption(AppOption.HELP) || hasOption(AppOption.USAGE) ) {
             help( getErrorStream() );
+            // TODO: Split help and usage
             return SUCCESS_RC; // TODO: Is this the correct return value?
         }
 
         TransformOptions options = new TransformOptions();
 
         options.setLogging();
+
+        if ( !options.setInput() ) {
+            error("No input option was specified");
+            return TRANSFORM_ERROR_RC;
+        } else if ( !options.setOutput() ) {
+            error("No output option was specified");
+            return TRANSFORM_ERROR_RC;
+        } else if ( !options.validateFiles() ) {
+            return TRANSFORM_ERROR_RC;
+        }
 
         boolean loadedRules;
         try {
@@ -838,32 +873,15 @@ public class JakartaTransformer {
         	error("Transformation rules cannot be used");
         	return RULES_ERROR_RC;
         }
-
         if ( options.isVerbose ) {
         	options.logRules( getInfoStream() );
         }
 
-        if ( !options.setInput() ) {
-            error("No input option was specified");
-            return TRANSFORM_ERROR_RC;
-        }
-        
-        if ( !options.setOutput() ) {
-            error("No output option was specified");
-            return TRANSFORM_ERROR_RC;
-        }
-
-        if ( !options.validateFiles() ) {
-            return TRANSFORM_ERROR_RC;
-        }
-        
         try {
         	options.transform(); // throws JakartaTransformException
-
         } catch ( JakartaTransformException e ) {
             error("Transform failure: %s\n", e);
             return TRANSFORM_ERROR_RC;
-
         } catch ( Throwable th) {
         	error("Unexpected failure: %s\n", th);
             return TRANSFORM_ERROR_RC;

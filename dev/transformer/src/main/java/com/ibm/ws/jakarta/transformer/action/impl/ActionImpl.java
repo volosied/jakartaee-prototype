@@ -59,6 +59,7 @@ public abstract class ActionImpl implements Action {
 		this.excludedAny = null;
 
 		this.packageRenames = null;
+		this.binaryPackageRenames = null;
 
 		//
 
@@ -140,12 +141,23 @@ public abstract class ActionImpl implements Action {
 			this.excludedExact, this.excludedHead, this.excludedTail, this.excludedAny );
 
 		Map<String, String> useRenames = new HashMap<String, String>( renames.size() );
+		Map<String, String> useBinaryRenames = new HashMap<String, String>( renames.size() );
 
 		for ( Map.Entry<String, String> renameEntry : renames.entrySet() ) {
 			// System.out.println("Binary conversion from [ " + renameEntry.getKey() + " ] to [ " + renameEntry.getValue() + " ]");
-			useRenames.put( renameEntry.getKey(), renameEntry.getValue() );
+			String initialName = renameEntry.getKey();
+			String finalName = renameEntry.getValue();
+
+			useRenames.put(initialName, finalName);
+			
+			String initialBinaryName = initialName.replace('.',  '/');
+			String finalBinaryName = finalName.replace('.',  '/');
+
+			useBinaryRenames.put(initialBinaryName, finalBinaryName);
 		}
+
 		this.packageRenames = useRenames;
+		this.binaryPackageRenames = useBinaryRenames;
 
 		this.unchangedBinaryTypes = new HashSet<>();
 		this.changedBinaryTypes = new HashMap<>();
@@ -166,7 +178,7 @@ public abstract class ActionImpl implements Action {
 	private final boolean isVerbose;
 
 	public PrintStream getLogStream() {
-		return logStream;
+		return ( (root != null) ? root.getLogStream() : logStream );
 	}
 
 	public boolean getIsTerse() {
@@ -325,7 +337,7 @@ public abstract class ActionImpl implements Action {
 				}
 			}
 
-			verbose("Do not include [ %s ]");
+			verbose("Do not include [ %s ]\n", resourceName);
 			return false;
 		}
 	}
@@ -359,7 +371,7 @@ public abstract class ActionImpl implements Action {
 				}
 			}
 			
-			verbose("Do not exclude[ %s ]");
+			verbose("Do not exclude[ %s ]\n", resourceName);
 			return false;
 		}
 	}
@@ -367,7 +379,8 @@ public abstract class ActionImpl implements Action {
 	//
 
 	private final Map<String, String> packageRenames;
-
+	private final Map<String, String> binaryPackageRenames;
+	
 	/**
 	 * Replace a single package according to the package rename rules.
 	 * 
@@ -383,6 +396,27 @@ public abstract class ActionImpl implements Action {
 			return root.replacePackage(initialName);
 		} else {
 			return packageRenames.getOrDefault(initialName, null);
+		}
+	}
+
+	/**
+	 * Replace a single package according to the package rename rules.
+	 * The package name has '/' separators, not '.' separators.
+	 *
+	 * Package names must match exactly.
+	 *
+	 * @param initialName The package name which is to be replaced.
+	 *
+	 * @return The replacement for the initial package name.  Null if no
+	 *     replacement is available.
+	 */
+	protected String replaceBinaryPackage(String initialName) {
+		if ( root != null ) {
+			return root.replaceBinaryPackage(initialName);
+		} else {
+			String finalName = binaryPackageRenames.getOrDefault(initialName, null);
+			// System.out.println("Initial binary [ " + initialName + " ] Final [ " + finalName + " ]");
+			return finalName;
 		}
 	}
 
@@ -490,7 +524,7 @@ public abstract class ActionImpl implements Action {
 			if ( lastSlashOffset != -1 ) {
 				String inputPackage = inputName.substring(0, lastSlashOffset);
 				// System.out.println("Input package [ " + inputPackage + " ]");
-				String outputPackage = replacePackage(inputPackage);
+				String outputPackage = replaceBinaryPackage(inputPackage);
 				if ( outputPackage != null ) {
 					// System.out.println("Output package [ " + outputPackage + " ]");
 					outputName = outputPackage + inputName.substring(lastSlashOffset);
@@ -785,7 +819,7 @@ public abstract class ActionImpl implements Action {
 		int length = inputPackageSpecifier.length();
 		if ( length > 0 ) {
 			String inputBinaryPackage = inputPackageSpecifier.substring(0, length - 1);
-			String outputBinaryPackage = replacePackage(inputBinaryPackage);
+			String outputBinaryPackage = replaceBinaryPackage(inputBinaryPackage);
 			if ( outputBinaryPackage != null ) {
 				outputPackageSpecifier = outputBinaryPackage + '/';
 			}
@@ -1012,21 +1046,27 @@ public abstract class ActionImpl implements Action {
 	public InputStreamData apply(String inputName, InputStream inputStream, int inputCount)
 		throws JakartaTransformException {
 
-		ByteData inputData = read(inputName, inputStream, inputCount);
-		// throws JakartaTransformException
+		String className = getClass().getSimpleName();
+		String methodName = "apply";
+
+		// verbose("[ %s.%s ]: Requested [ %s ] [ %s ]\n", className, methodName, inputName, inputCount);
+		ByteData inputData = read(inputName, inputStream, inputCount); // throws JakartaTransformException
+		// verbose("[ %s.%s ]: Obtained [ %s ] [ %s ] [ %s ]\n", className, methodName, inputName, inputData.length, inputData.data);
 
 		ByteData outputData;
-
 		try {
 			outputData = apply(inputName, inputData.data, inputData.length);
 			// throws JakartaTransformException
 		} catch ( Throwable th ) {
-			error("Transform failure [ %s ]", th, inputName);
+			error("Transform failure [ %s ]\n", th, inputName);
 			outputData = null;			
 		}
 
 		if ( outputData == null ) {
+			verbose("[ %s.%s ]: Null transform\n", className, methodName);
 			outputData = inputData;
+		} else {
+			verbose("[ %s.%s ]: Tansform [ %s ] [ %s ] [ %s ]\n", className, methodName, outputData.name, outputData.length, outputData.data);
 		}
 
 		return new InputStreamData(outputData);
@@ -1037,24 +1077,33 @@ public abstract class ActionImpl implements Action {
 		String inputName, InputStream inputStream, int inputCount,
 		OutputStream outputStream) throws JakartaTransformException {
 
+		String className = getClass().getSimpleName();
+		String methodName = "apply";
+
+		// verbose("[ %s.%s ]: Requested [ %s ] [ %s ]\n", className, methodName, inputName, inputCount);
+
 		ByteData inputData = read(inputName, inputStream, inputCount);
 		// throws JakartaTransformException
 
+		// verbose("[ %s.%s ]: Obtained [ %s ] [ %s ]\n", className, methodName, inputName, inputData.length);
+
 		ByteData outputData;
-		
+
 		try {
 			outputData = apply(inputName, inputData.data, inputData.length);
 			// throws JakartaTransformException
 		} catch ( Throwable th ) {
-			error("Transform failure [ %s ]", th, inputName);
+			error("Transform failure [ %s ]\n", th, inputName);
 			outputData = null;
 		}
 
 		boolean hasChanges;
 		if ( outputData == null ) {
+			verbose("[ %s.%s ]: Null transform\n", className, methodName);
 			hasChanges = false;
 			outputData = inputData;
 		} else {
+			verbose("[ %s.%s ]: Transform [ %s ] [ %s ]\n", className, methodName, outputData.name, outputData.length);
 			hasChanges = true;
 		}
 
