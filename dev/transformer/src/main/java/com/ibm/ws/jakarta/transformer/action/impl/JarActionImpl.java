@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.nio.file.attribute.FileTime;
+// import java.nio.file.attribute.FileTime;
 import java.util.Map;
 import java.util.Set;
-import java.util.jar.JarEntry;
-import java.util.jar.JarInputStream;
-import java.util.jar.JarOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.Action;
@@ -88,7 +88,6 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 
 	//
 
-	@SuppressWarnings("resource") // Streams are closed by the caller.
 	@Override
 	public void apply(
 		String inputPath, InputStream inputStream,
@@ -96,36 +95,29 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 
 		setResourceNames(inputPath, outputPath);
 
-		JarInputStream jarInputStream;
-		try {
-			jarInputStream = new JarInputStream(inputStream); // throws IOException
-		} catch ( IOException e ) {
-			throw new JakartaTransformException("Failed to open jar input [ " + inputPath + " ]", e);
-		}
+		// Use Zip streams instead of Jar streams.
+		//
+		// Jar streams automatically read and consume the manifest, which we don't want.
 
-		JarOutputStream jarOutputStream;
-		try {
-			jarOutputStream = new JarOutputStream(outputStream);
-		} catch ( IOException e ) {
-			throw new JakartaTransformException("Failed to open jar output [ " + outputPath + " ]", e);
-		}
+		ZipInputStream zipInputStream = new ZipInputStream(inputStream);
+		ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream);
 
 		try {
-			applyJar(inputPath, jarInputStream, outputPath, jarOutputStream);
+			apply(inputPath, zipInputStream, outputPath, zipOutputStream);
 			// throws JakartaTransformException
 
 		} finally {
 			try {
-				jarOutputStream.finish(); // throws IOException
+				zipOutputStream.finish(); // throws IOException
 			} catch ( IOException e ) {
 				throw new JakartaTransformException("Failed to complete output [ " + outputPath + " ]", e);
 			}
 		}
 	}
 
-	protected void applyJar(
-		String inputPath, JarInputStream jarInputStream,
-		String outputPath, JarOutputStream jarOutputStream) throws JakartaTransformException {
+	protected void apply(
+		String inputPath, ZipInputStream zipInputStream,
+		String outputPath, ZipOutputStream zipOutputStream) throws JakartaTransformException {
 
 		String prevName = null;
 		String inputName = null;
@@ -137,9 +129,13 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 
 			byte[] buffer = new byte[FileUtils.BUFFER_ADJUSTMENT];
 
-			JarEntry inputEntry;
-			while ( (inputEntry = (JarEntry) jarInputStream.getNextEntry()) != null ) {
+			ZipEntry inputEntry;
+			while ( (inputEntry = zipInputStream.getNextEntry()) != null ) {
 				inputName = inputEntry.getName();
+				long inputLength = inputEntry.getSize();
+
+				verbose("[ %s.%s ] [ %s ] Size [ %s ]\n",
+					getClass().getSimpleName(), "applyZip", inputName, inputLength);
 
 				Action selectedAction;
 
@@ -162,17 +158,12 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 
 					// TODO: Should more of the entry details be transferred?
 
-					JarEntry outputEntry = new JarEntry(inputName);
-					jarOutputStream.putNextEntry(outputEntry); // throws IOException
-					FileUtils.transfer(jarInputStream, jarOutputStream, buffer); // throws IOException 
-					jarOutputStream.closeEntry(); // throws IOException					
+					ZipEntry outputEntry = new ZipEntry(inputName);
+					zipOutputStream.putNextEntry(outputEntry); // throws IOException
+					FileUtils.transfer(zipInputStream, zipOutputStream, buffer); // throws IOException 
+					zipOutputStream.closeEntry(); // throws IOException
 
 				} else {
-					long inputLength = inputEntry.getSize();
-
-					verbose("[ %s.%s ] [ %s ] Size [ %s ]\n",
-						getClass().getSimpleName(), "applyJar", inputName, inputLength);
-
 //					if ( getIsVerbose() ) {
 //						long inputCRC = inputEntry.getCrc();
 //
@@ -184,7 +175,7 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 //						FileTime inputModified = inputEntry.getLastModifiedTime();
 //
 //						String className = getClass().getSimpleName();
-//						String methodName = "applyJar";
+//						String methodName = "applyZip";
 //
 //						verbose("[ %s.%s ] [ %s ] Size [ %s ] CRC [ %s ]\n",
 //							className, methodName, inputName, inputLength, inputCRC);
@@ -201,16 +192,16 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 						intInputLength = FileUtils.verifyArray(0, inputLength);
 					}
 
-					InputStreamData outputData = selectedAction.apply(inputName, jarInputStream, intInputLength);
+					InputStreamData outputData = selectedAction.apply(inputName, zipInputStream, intInputLength);
 
 					recordTransform(selectedAction, inputName);
 
 					// TODO: Should more of the entry details be transferred?
 
-					JarEntry outputEntry = new JarEntry(inputName);
-					jarOutputStream.putNextEntry(outputEntry); // throws IOException
-					FileUtils.transfer(outputData.stream, jarOutputStream, buffer); // throws IOException 
-					jarOutputStream.closeEntry(); // throws IOException					
+					ZipEntry outputEntry = new ZipEntry(inputName);
+					zipOutputStream.putNextEntry(outputEntry); // throws IOException
+					FileUtils.transfer(outputData.stream, zipOutputStream, buffer); // throws IOException 
+					zipOutputStream.closeEntry(); // throws IOException					
 				}
 
 				prevName = inputName;

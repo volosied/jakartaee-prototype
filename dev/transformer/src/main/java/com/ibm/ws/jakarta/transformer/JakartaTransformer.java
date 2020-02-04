@@ -187,11 +187,11 @@ public class JakartaTransformer {
         VERBOSE("v", "verbose", "Display verbose output",
         	!OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),        
 
-        RULES_SELECTIONS("ts", "transform selection", "Transformation selections URL",
+        RULES_SELECTIONS("ts", "selection", "Transformation selections URL",
         	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-        RULES_RENAMES("tr", "transform renames", "Transformation package renames URL",
+        RULES_RENAMES("tr", "renames", "Transformation package renames URL",
         	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-        RULES_VERSIONS("tv", "transform versions", "Transformation package versions URL",
+        RULES_VERSIONS("tv", "versions", "Transformation package versions URL",
         	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
 
         INVERT("i", "invert", "Invert transformation rules",
