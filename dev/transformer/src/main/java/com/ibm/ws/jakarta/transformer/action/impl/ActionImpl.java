@@ -96,16 +96,10 @@ public abstract class ActionImpl implements Action {
 	public static final PrintStream NULL_STREAM = null;
 
 	public static final boolean IS_TERSE = true;
-	public static final boolean IS_NOT_TERSE = false;
-	
 	public static final boolean IS_VERBOSE = true;
-	public static final boolean IS_NOT_VERBOSE = false;
-
-	public static final boolean DO_INVERT = true;
-	public static final boolean DO_NOT_INVERT = false;
 
 	public ActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames) {
-		this(NULL_STREAM, IS_NOT_TERSE, IS_NOT_VERBOSE,
+		this(NULL_STREAM, !IS_TERSE, !IS_VERBOSE,
 			 includes, excludes, renames);
 	}
 
@@ -1049,9 +1043,9 @@ public abstract class ActionImpl implements Action {
 		String className = getClass().getSimpleName();
 		String methodName = "apply";
 
-		// verbose("[ %s.%s ]: Requested [ %s ] [ %s ]\n", className, methodName, inputName, inputCount);
+		verbose("[ %s.%s ]: Requested [ %s ] [ %s ]\n", className, methodName, inputName, inputCount);
 		ByteData inputData = read(inputName, inputStream, inputCount); // throws JakartaTransformException
-		// verbose("[ %s.%s ]: Obtained [ %s ] [ %s ] [ %s ]\n", className, methodName, inputName, inputData.length, inputData.data);
+		verbose("[ %s.%s ]: Obtained [ %s ] [ %s ] [ %s ]\n", className, methodName, inputName, inputData.length, inputData.data);
 
 		ByteData outputData;
 		try {
@@ -1066,7 +1060,10 @@ public abstract class ActionImpl implements Action {
 			verbose("[ %s.%s ]: Null transform\n", className, methodName);
 			outputData = inputData;
 		} else {
-			verbose("[ %s.%s ]: Tansform [ %s ] [ %s ] [ %s ]\n", className, methodName, outputData.name, outputData.length, outputData.data);
+			verbose(
+				"[ %s.%s ]: Active transform [ %s ] [ %s ] [ %s ]\n",
+				className, methodName,
+				outputData.name, outputData.length, outputData.data);
 		}
 
 		return new InputStreamData(outputData);
@@ -1080,15 +1077,11 @@ public abstract class ActionImpl implements Action {
 		String className = getClass().getSimpleName();
 		String methodName = "apply";
 
-		// verbose("[ %s.%s ]: Requested [ %s ] [ %s ]\n", className, methodName, inputName, inputCount);
-
-		ByteData inputData = read(inputName, inputStream, inputCount);
-		// throws JakartaTransformException
-
-		// verbose("[ %s.%s ]: Obtained [ %s ] [ %s ]\n", className, methodName, inputName, inputData.length);
+		verbose("[ %s.%s ]: Requested [ %s ] [ %s ]\n", className, methodName, inputName, inputCount);
+		ByteData inputData = read(inputName, inputStream, inputCount); // throws JakartaTransformException
+		verbose("[ %s.%s ]: Obtained [ %s ] [ %s ]\n", className, methodName, inputName, inputData.length);
 
 		ByteData outputData;
-
 		try {
 			outputData = apply(inputName, inputData.data, inputData.length);
 			// throws JakartaTransformException
@@ -1103,7 +1096,7 @@ public abstract class ActionImpl implements Action {
 			hasChanges = false;
 			outputData = inputData;
 		} else {
-			verbose("[ %s.%s ]: Transform [ %s ] [ %s ]\n", className, methodName, outputData.name, outputData.length);
+			verbose("[ %s.%s ]: Active transform [ %s ] [ %s ]\n", className, methodName, outputData.name, outputData.length);
 			hasChanges = true;
 		}
 

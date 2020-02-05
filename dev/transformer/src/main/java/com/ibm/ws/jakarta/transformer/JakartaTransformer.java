@@ -173,7 +173,7 @@ public class JakartaTransformer {
     public static final String DEFAULT_VERSIONS_REFERENCE = "jakarta-versions.properties";
 
     public static enum TransformType {
-        CLASS, MANIFEST, SERVICE_CONFIG, XML,
+        CLASS, MANIFEST, FEATURE, SERVICE_CONFIG, XML,
         ZIP, JAR, WAR, RAR, EAR;
     }
 
@@ -200,7 +200,9 @@ public class JakartaTransformer {
         CLASS("c", "class", "Input class",
         	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
         MANIFEST("m", "manifest", "Input manifest",
-        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+            OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+        FEATURE("f", "feature", "Input feature manifest",
+            OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
         SERVICE_CONFIG("s", "service config", "Input service configuration",
         	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
         XML("x", "xml", "Input XML",
@@ -539,6 +541,14 @@ public class JakartaTransformer {
                 return true;
             }
 
+            String featureManifestName = getOptionValue(AppOption.FEATURE);
+            if ( featureManifestName != null ) {
+                info("Input from feature manifest [ %s ]\n", featureManifestName);
+                inputName = featureManifestName;
+                transformType = TransformType.FEATURE;
+                return true;
+            }
+
             String serviceConfigName = getOptionValue(AppOption.SERVICE_CONFIG);
             if ( serviceConfigName != null ) {
                 info("Input from service configuration [ %s ]\n", serviceConfigName);
@@ -710,14 +720,14 @@ public class JakartaTransformer {
 
     		int intLength = FileUtils.verifyArray(0, inputLength);
 
-    		ManifestAction configAction = new ManifestActionImpl(
+    		ManifestAction manifestAction = new ManifestActionImpl(
     			getInfoStream(), isTerse, isVerbose,
-    			includes, excludes, packageRenames);
+    			includes, excludes, packageRenames, ManifestActionImpl.IS_MANIFEST);
 
-    		configAction.apply(inputPath, inputStream, intLength, outputStream);
+    		manifestAction.apply(inputPath, inputStream, intLength, outputStream);
 
-    		if ( configAction.hasChanges() ) {
-    			ManifestChanges configChanges = configAction.getChanges();
+    		if ( manifestAction.hasChanges() ) {
+    			ManifestChanges configChanges = manifestAction.getChanges();
 
     			info( "Resource name [ %s ] [ %s ]\n",
             		configChanges.getInputResourceName(),
@@ -725,6 +735,29 @@ public class JakartaTransformer {
 
     			info( "Replacements [ %s ]\n", configChanges.getReplacements() );
     		}
+        }
+
+        protected void transformFeature(
+        	InputStream inputStream, long inputLength,
+        	OutputStream outputStream) throws JakartaTransformException {
+
+        	int intLength = FileUtils.verifyArray(0, inputLength);
+
+        	ManifestAction featureAction = new ManifestActionImpl(
+        		getInfoStream(), isTerse, isVerbose,
+        		includes, excludes, packageRenames, ManifestActionImpl.IS_FEATURE);
+
+        	featureAction.apply(inputPath, inputStream, intLength, outputStream);
+
+        	if ( featureAction.hasChanges() ) {
+        		ManifestChanges configChanges = featureAction.getChanges();
+
+        		info( "Resource name [ %s ] [ %s ]\n",
+               		configChanges.getInputResourceName(),
+        			configChanges.getOutputResourceName() );
+
+        		info( "Replacements [ %s ]\n", configChanges.getReplacements() );
+        	}
         }
 
         private static final String DASH_LINE =
@@ -811,6 +844,8 @@ public class JakartaTransformer {
         		transformServiceConfig(inputStream, inputLength, outputStream);
         	} else if ( transformType == TransformType.MANIFEST) {
         		transformManifest(inputStream, inputLength, outputStream);
+        	} else if ( transformType == TransformType.FEATURE) {
+        		transformFeature(inputStream, inputLength, outputStream);
 
         	} else if ( transformType == TransformType.XML ) {
         		transformOther(inputStream, inputLength, outputStream);
