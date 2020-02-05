@@ -18,14 +18,18 @@ buildscript {
     dependencies {
         classpath group: 'net.wasdev.wlp.gradle.plugins',
                   name: 'liberty-gradle-plugin',
-                  version: '2.5'
+                  version: '2.7'
     }
 }
 
 // Obtain 'installLiberty'
 apply plugin: 'liberty'
+
 // Obtain 'clean'
 apply plugin: 'java'
+
+// May be needed? 
+//apply plugin: 'base'
 
 repositories {
     mavenCentral()
@@ -37,8 +41,40 @@ dependencies {
 
 liberty {
     server {
+
+        //Only contains the servlet-4.0 feature
+        configFile = file('config/server.xml')
+
+        // May not be necessary? 
         features {
             acceptLicense = true
         }
+
+        packageLiberty {
+            archive = "minified_20.0.0.1.zip"
+            include = "minify"
+        }
+
     }
+}
+
+task unzipImage(type: Copy) {
+    def zipFile = file('minified_20.0.0.1.zip')
+    def outputDir = file("mini-liberty-image")
+
+    from zipTree(zipFile)
+    into outputDir
+}
+
+task createMinifiedImage {
+    dependsOn 'clean'
+    dependsOn 'installLiberty'
+    dependsOn 'libertyCreate'
+    dependsOn 'libertyPackage'
+    dependsOn 'libertyStop'
+
+    //install & create must run before packaging
+    tasks.findByName('libertyCreate').mustRunAfter 'installLiberty'
+    tasks.findByName('libertyPackage').mustRunAfter 'libertyCreate'
+    tasks.findByName('unzipImage').mustRunAfter 'libertyPackage'
 }
