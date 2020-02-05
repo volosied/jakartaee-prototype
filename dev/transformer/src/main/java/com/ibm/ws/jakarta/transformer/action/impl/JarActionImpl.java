@@ -125,7 +125,8 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 		try {
 			ClassAction classAction = new ClassActionImpl(this);
 			ServiceConfigAction configAction = new ServiceConfigActionImpl(this);
-			ManifestAction manifestAction = new ManifestActionImpl(this);
+			ManifestAction manifestAction = new ManifestActionImpl(this, ManifestActionImpl.IS_MANIFEST);
+			ManifestAction featureAction = new ManifestActionImpl(this, ManifestActionImpl.IS_FEATURE);
 
 			byte[] buffer = new byte[FileUtils.BUFFER_ADJUSTMENT];
 
@@ -145,6 +146,8 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 					selectedAction = configAction;
 				} else if ( manifestAction.accept(inputName) ) {
 					selectedAction = manifestAction;
+				} else if ( featureAction.accept(inputName) ) {
+					selectedAction = featureAction;
 				} else {
 					selectedAction = null;
 				}
