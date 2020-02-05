@@ -770,7 +770,7 @@ public class JakartaTransformer {
             	info( DASH_LINE );
             	info( JAR_LINE,
             		"All Actions", jarChanges.getAllSelected(),
-            		"Unchangdd", jarChanges.getAllUnchanged(),
+            		"Unchanged", jarChanges.getAllUnchanged(),
             		"Changed", jarChanges.getAllChanged());
 
             	for ( String actionName : jarChanges.getActionNames() ) {
