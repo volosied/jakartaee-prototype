@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.Attributes;
@@ -180,30 +181,46 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 		Map<String, Attributes> initialEntries = initialManifest.getEntries();
 		Map<String, Attributes> finalEntries = finalManifest.getEntries();
 
-		for ( Map.Entry<String, Attributes> initialAttributeEntry : initialEntries.entrySet() ) {
-			String entryKey = initialAttributeEntry.getKey();
-			Attributes initialAttributes = initialAttributeEntry.getValue();
+		for ( Map.Entry<String, Attributes> entry : initialEntries.entrySet() ) {
+			String entryKey = entry.getKey();
+			Attributes initialEntryAttributes = entry.getValue();
 
-			Attributes finalAttributes = new Attributes( initialAttributes.size() );
+			Attributes finalAttributes = new Attributes( initialEntryAttributes.size() );
 			finalEntries.put(entryKey, finalAttributes);
 
-			transform(inputName, entryKey, initialAttributes, finalAttributes);
+			transform(inputName, entryKey, initialEntryAttributes, finalAttributes);
 		}
 	}
 
+	private static final Set<String> manifestKeysToTransform;
+	
+	static {
+		Set<String> manifestKeys = new HashSet<String>();
+		manifestKeys.add("DynamicImport-Package");
+		manifestKeys.add("Export-Package");
+	    manifestKeys.add("Import-Package");
+	    manifestKeysToTransform = manifestKeys;
+	}
+	
 	protected void transform(
 		String inputName, String entryName,
 		Attributes initialAttributes, Attributes finalAttributes) {
 
 		verbose(
 			"Transforming [ %s ]: [ %s ] Attributes [ %d ]\n",
-			inputName, entryName, initialAttributes.size() );
-
+			inputName, entryName, initialAttributes.size() );		
+		
 		for ( Map.Entry<Object, Object> entries : initialAttributes.entrySet() ) {
-			Object key = entries.getKey();
-			String initialValue = (String) entries.getValue();
+			Object key = entries.getKey(); 
+			String keyName = key.toString();
 
-			String finalValue = replaceEmbeddedPackages(initialValue);
+			String initialValue = (String) entries.getValue();
+			String finalValue = null;
+		
+			if (manifestKeysToTransform.contains(keyName)) {
+			   finalValue = replacePackages(initialValue);
+			}
+			
 			if ( finalValue == null ) {
 				finalValue = initialValue;
 			} else {
@@ -296,4 +313,247 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 		sb.setLength(0);
 		return quotedValue;
 	}
+	
+	/**
+	 * Replace all embedded packages of specified text with replacement
+	 * packages.
+	 *
+	 * @param text Text embedding zero, one, or more package names.
+	 *
+	 * @return The text with all embedded package names replaced.  Null if no
+	 *     replacements were performed.
+	 */
+	protected String replacePackages(String text) {
+
+		// System.out.println("Initial text [ " + text + " ]");
+
+		String initialText = text;
+
+		for ( Map.Entry<String, String> renameEntry : packageRenames.entrySet() ) {
+			String key = renameEntry.getKey();
+			int keyLen = key.length();
+
+			// System.out.println("Next target [ " + key + " ]");
+
+			int textLimit = text.length() - keyLen;
+
+			int lastMatchEnd = 0;
+			while ( lastMatchEnd <= textLimit ) {
+				int matchStart = text.indexOf(key, lastMatchEnd);
+				if ( matchStart == -1 ) {
+					break;
+				}
+
+				char charAfterMatch = text.charAt(matchStart+key.length());
+				if ( charAfterMatch == '.') {
+					break;  // The match is part of a longer package name.  So not a match.
+				}
+
+				String value = renameEntry.getValue();
+				int valueLen = value.length();
+
+				String head = text.substring(0, matchStart);
+				String tail = text.substring(matchStart + keyLen);
+				tail = replacePackageVersion(tail, "[4.0,5.0)");
+				text = head + value + tail;
+
+				lastMatchEnd = matchStart + valueLen;
+				textLimit += (valueLen - keyLen);
+
+				// System.out.println("Next text [ " + text + " ]");
+			}
+		}
+
+		if ( initialText == text) {
+			// System.out.println("Final text is unchanged");
+			return null;
+		} else {
+			// System.out.println("Final text [ " + text + " ]");
+			return text;
+		}
+	}
+
+	/**
+	 * 
+	 * @param text  - A string containing package attribute text at the head of the string.
+	 *         Assumptions: - The first package name has already been stripped from the embedding text.
+	 *                      - Other package names and attributes may or may not follow.
+	 *                      - Packages are separated by a comma.
+	 *                      - If a comma is inside quotation marks, it is not a package delimiter.
+	 * @param newVersion    - version to replace the version of the first package in the text
+	 *                  
+	 * @return String with version numbers of first package replaced by the newVersion.
+	 */
+	protected String replacePackageVersion(String text, String newVersion) {
+		verbose("replacePackageVersion: ( %s )\n",  text );
+		
+		String packageText = getPackageAttributeText(text);
+		
+		if (packageText == null) {
+			return text;
+		}
+		
+		if (packageText.isEmpty()) {
+			return text;
+		}
+		
+		verbose("replacePackageVersion: (packageText: %s )\n", packageText);
+		
+		final String VERSION = "version";
+		final int VERSION_LEN = 7;
+		final char QUOTE_MARK = '\"';
+		
+		int versionIndex = packageText.indexOf(VERSION);
+		if ( versionIndex == -1 ) { 
+			return text;  // nothing to replace
+		}
+		
+		// The actual version numbers are after the "version" and the "=" and between quotation marks ("").
+		// Ignore white space that occurs around the "=", but do not ignore white space between quotation marks.
+		// Everything inside the "" is part of the version and will be replaced.
+    	boolean foundEquals = false;
+    	boolean foundQuotationMark = false; 
+    	int versionBeginIndex = -1;
+    	int versionEndIndex = -1;
+    	
+		// skip to actual version number which is after "=".  Version begins inside double quotation marks 
+        for (int i=versionIndex + VERSION_LEN; i < packageText.length(); i++) {
+                
+        	char ch = packageText.charAt(i);
+        	
+        	// skip white space until we find equals sign
+        	if ( !foundEquals ) {
+        		
+        		if (ch == '=') {
+        			foundEquals = true;
+        			continue;
+        		}
+        		
+        		if ( Character.isWhitespace(ch)) {
+        			continue;
+        		}
+                 
+        		error("Syntax error found non-white-space character before equals sign in version {" + packageText + "}\n");
+        		return text;   // Syntax error - returning original text
+        	}
+        	
+        	// Skip white space past the equals sign
+        	if ( Character.isWhitespace(ch)) {
+    			verbose("ch is \'%s\' and is whitespace.\n", ch);
+    			continue;
+    		}
+        	
+        	// When we find the quotation marks past the equals sign, we are finished.
+        	if (!foundQuotationMark) {
+        		
+        		if (ch == QUOTE_MARK) {
+        			versionBeginIndex = i+1;  // just past the 1st quotation mark
+        			
+        			versionEndIndex = packageText.indexOf('\"', i+1);
+        			if (versionEndIndex == -1) {
+        				error("Syntax error, package version does not have closing quotation mark\n");
+        				return text; // Syntax error - returning original text
+        			}
+        			versionEndIndex--; // just before the 2nd quotation mark
+        			
+        			verbose("versionBeginIndex = [%s]\n", versionBeginIndex);
+            		verbose("versionEndIndex = [%s]\n", versionEndIndex);
+        			foundQuotationMark = true; // not necessary, just leave loop
+        			break;
+        		}
+        		
+        		if ( Character.isWhitespace(ch)) {
+        			continue;
+        		}
+                 
+        		error("Syntax error found non-white-space character after equals sign  in version {" + packageText + "}\n");
+        		return text;   // Syntax error - returning original text
+        	}
+        }
+		
+    	String oldVersion = packageText.substring(versionBeginIndex, versionEndIndex+1);
+    	verbose("old version[ %s ] new version[ %s]\n", oldVersion, newVersion);
+    	
+    	String head = text.substring(0, versionBeginIndex);
+    	String tail = text.substring(versionEndIndex+1);
+    	
+    	String newText = head + newVersion + tail;
+    	verbose("Old [%s] New [%s]\n", text , newText);
+		
+		return newText;
+	}
+	
+	/**
+	 * 
+	 * @param text  - A string containing package attribute text at the head of the string.
+	 *         Assumptions: - The first package name has already been stripped from the embedding text.
+	 *                      - Other package names and attributes may or may not follow.
+	 *                      - Packages are separated by a comma.
+	 *                      - If a comma is inside quotation marks, it is not a package delimiter.
+	 * @return
+	 */
+	protected String getPackageAttributeText(String text) {
+		verbose("getPackageAttributeText ENTER[ text: %s]\n", text);
+		
+		if (text == null) {
+			return null;
+		}
+		
+		if (!firstCharIsSemicolon(text)) {
+			return "";  // no package attributes
+		}
+		
+		int commaIndex = text.indexOf(',');
+		verbose("Comma index: [%d]\n", commaIndex);
+		// If there is no comma, then the whole text is the packageAttributeText
+		if (commaIndex == -1) {
+			return text;
+		}
+		
+		// packageText is beginning of text up to and including comma.
+		// Need to test whether the comma is within quotes - thus not the true end of the packageText.
+		// If an odd number of quotes are found, then the comma is in quotes and we need to find the next comma.
+		String packageText = text.substring(0, commaIndex+1);   
+		verbose("packageText .%s.\n", packageText);
+		boolean quotesAreEven = hasEvenNumberOfOccurrencesOfChar(packageText, '\"');
+		
+		if ( !quotesAreEven ) {
+			commaIndex = text.indexOf(',', packageText.length());
+			if (commaIndex == -1) {
+				packageText = text;  // No trailing comma indicates embedding text is the package text.
+			} else {
+			   verbose("Updating packageText .%s.\n", packageText);
+			   verbose("commaIndex is [ %d ]\n", commaIndex);
+			   packageText = text.substring(0, commaIndex+1);
+			   verbose("new      packageText .%s.\n", packageText);
+			}
+		}
+		
+		verbose("getPackageAttributeText returning: .%s.\n", packageText);
+		return packageText;
+	}
+	
+	/**
+	 * Returns true is first non-white space character of the parameter is a semi-colon.
+	 * @param s
+	 * @return
+	 */
+	protected boolean firstCharIsSemicolon(String s) {
+		for (int i=0; i < s.length(); i++) {
+			if (Character.isWhitespace(s.charAt(i))) {
+				continue;
+			}
+			if (s.charAt(i) == ';') {
+				return true;
+			}
+			return false;
+		}
+		return false;
+	}
+	
+	private boolean hasEvenNumberOfOccurrencesOfChar(String testString, char testChar) {
+		long occurrences = testString.chars().filter(ch -> ch == '\"').count();
+		return ((occurrences % 2 ) == 0);
+	}
+
 }
