@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -126,7 +127,7 @@ public class ManifestWriter {
 
         StringBuilder builder = new StringBuilder();
 
-        write(builder, mf.getMainAttributes(), dos);
+        write( mf.getMainAttributes(), IS_MAIN, dos, builder );
 
         for ( String mfKey : sort( mf.getEntries().keySet() ) ) {
         	Attributes mfValue = mf.getAttributes(mfKey);
@@ -139,7 +140,7 @@ public class ManifestWriter {
             dos.writeBytes(builder.toString());
             builder.setLength(0);
 
-            write( builder, mfValue, dos );
+            write(mfValue, !IS_MAIN, dos, builder);
         }
 
         dos.flush();
@@ -154,26 +155,58 @@ public class ManifestWriter {
     	return names;
     }
 
-    private static void write(StringBuilder builder, Attributes attributes, DataOutputStream out) throws IOException {
+    private static void write(
+    	Attributes attributes, boolean isMain,
+    	DataOutputStream out, StringBuilder builder) throws IOException {
+
+        String vername;
+        String version;
+        if ( isMain ) {
+        	vername = Name.MANIFEST_VERSION.toString();
+        	version = attributes.getValue(vername);
+        	if ( version == null ) {
+        		vername = Name.SIGNATURE_VERSION.toString();
+        		version = attributes.getValue(vername);
+        	}
+        	if ( version != null ) {
+        		writeAttribute(vername, version, out, builder); // throws IOException
+        	}
+        } else {
+        	vername = null;
+        	version = null;
+        }
+
     	Map<String, Name> names = getNames(attributes);
 
     	for ( String name : sort( names.keySet() ) ) {
-            builder.append(name);
-            builder.append(": ");
-
+    		if ( isMain && (vername != null) && name.equals(vername) ) {
+    			continue;
+    		}
             String value = (String) attributes.get( names.get(name) );
-            builder.append(value);
-
-            builder.append("\r\n");
-
-            make72Safe(builder);
-            out.writeBytes(builder.toString());
-            builder.setLength(0);
+            writeAttribute(name, value, out, builder);
         }
 
         out.writeBytes("\r\n");
     }
 
+    private static final boolean IS_MAIN = true;
+
+    private static void writeAttribute(
+    	String name, String value,
+    	DataOutputStream out, StringBuilder builder) throws IOException {
+
+		builder.append(name);
+		builder.append(": ");
+		builder.append(value);
+		builder.append("\r\n");
+
+        make72Safe(builder);
+
+        out.writeBytes( builder.toString() ); // 'writeBytes' throws IOException
+        builder.setLength(0);
+    }
+
+    
     private static void make72Safe(StringBuilder builder) {
         int length = builder.length();
         if ( length > 72 ) {
