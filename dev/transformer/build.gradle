@@ -19,10 +19,10 @@ configurations {
 }
 
 dependencies {
-  implementation 'biz.aQute.bnd:biz.aQute.bndlib:4.3.1'
-  implementation 'commons-cli:commons-cli:1.4'
+  compile 'biz.aQute.bnd:biz.aQute.bndlib:4.3.1'
+  compile 'commons-cli:commons-cli:1.4'
 
-  runtimeOnly 'org.slf4j:slf4j-simple:1.7.29'
+  compile 'org.slf4j:slf4j-simple:1.7.29'
 
   testImplementation 'org.junit.jupiter:junit-jupiter:5.5.2'
   testImplementation 'org.assertj:assertj-core:3.14.0'
@@ -71,3 +71,32 @@ task downloadArchives(type: Copy) {
   into "${buildDir}/archives"
   from configurations.archive
 }
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.ibm.ws.jakarta.transformer.JakartaTransformer'
+        attributes 'Class-Path': configurations.compile.collect { it.name }.join(' ')
+    }
+}
+
+task copyLibs(type: Copy) {
+    from configurations.compile
+    into 'build/libs/'
+}
+
+task runJar(type: JavaExec) {
+
+
+  classpath = sourceSets.main.runtimeClasspath
+
+    main = "com.ibm.ws.jakarta.transformer.JakartaTransformer";
+    args = [
+            "-j",
+            "../source.image/mini-liberty-image/wlp/lib/com.ibm.ws.webcontainer.servlet.4.0.factories_1.0.36.jar",
+            "-o",
+            "../source.image/mini-liberty-image/wlp/lib/_com.ibm.ws.webcontainer.servlet.4.0.factories_1.0.36.jar"
+           ]
+
+}
+
+runJar.dependsOn copyLibs
