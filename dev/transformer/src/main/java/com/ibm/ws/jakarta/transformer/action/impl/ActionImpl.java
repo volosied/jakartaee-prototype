@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -58,8 +59,10 @@ public abstract class ActionImpl implements Action {
 		this.excludedTail = null;
 		this.excludedAny = null;
 
-		this.packageRenames = null;
+		this.packageRenames = root.getPackageRenames();
 		this.binaryPackageRenames = null;
+		
+		this.packageVersions = root.getPackageVersions();
 
 		//
 
@@ -98,14 +101,16 @@ public abstract class ActionImpl implements Action {
 	public static final boolean IS_TERSE = true;
 	public static final boolean IS_VERBOSE = true;
 
-	public ActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames) {
+	public ActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames,
+			          Map<String, String> versions) {
 		this(NULL_STREAM, !IS_TERSE, !IS_VERBOSE,
-			 includes, excludes, renames);
+			 includes, excludes, renames, versions);
 	}
 
 	public ActionImpl(
 		PrintStream logStream, boolean isTerse, boolean isVerbose,
-		Set<String> includes, Set<String> excludes, Map<String, String> renames) {
+		Set<String> includes, Set<String> excludes, Map<String, String> renames,
+		Map<String, String> versions) {
 
 		this.root = null;
 		this.parent = null;
@@ -148,11 +153,24 @@ public abstract class ActionImpl implements Action {
 			String finalBinaryName = finalName.replace('.',  '/');
 
 			useBinaryRenames.put(initialBinaryName, finalBinaryName);
-		}
-
+		}		
 		this.packageRenames = useRenames;
 		this.binaryPackageRenames = useBinaryRenames;
+		
+		Map<String, String> useVersions;
+		if (versions != null ) {
+			useVersions = new HashMap<String, String>( versions.size() );
 
+			for ( Map.Entry<String, String> entry : versions.entrySet() ) {
+				String initialName = entry.getKey();
+				String finalName = entry.getValue();
+				useVersions.put(initialName, finalName);
+			}
+		} else {
+		    useVersions = Collections.emptyMap();
+        }
+		this.packageVersions = useVersions;
+		
 		this.unchangedBinaryTypes = new HashSet<>();
 		this.changedBinaryTypes = new HashMap<>();
 
@@ -374,6 +392,16 @@ public abstract class ActionImpl implements Action {
 
 	protected final Map<String, String> packageRenames;
 	protected final Map<String, String> binaryPackageRenames;
+	
+	protected Map<String, String> getPackageRenames() {
+		return packageRenames;
+	}
+	
+	protected final Map<String, String> packageVersions;
+	
+	protected Map<String, String> getPackageVersions() {
+		return packageVersions;
+	}
 	
 	/**
 	 * Replace a single package according to the package rename rules.

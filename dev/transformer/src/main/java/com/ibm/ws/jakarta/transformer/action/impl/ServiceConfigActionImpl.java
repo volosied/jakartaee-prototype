@@ -36,15 +36,17 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 		super(parentAction);
 	}
 
-	public ServiceConfigActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames) {
-		super(includes, excludes, renames);
+	public ServiceConfigActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames,
+			Map<String, String> versions) {
+		super(includes, excludes, renames, versions);
 	}
 
 	public ServiceConfigActionImpl(
 		PrintStream logStream, boolean isTerse, boolean isVerbose,
-		Set<String> includes, Set<String> excludes, Map<String, String> renames) {
+		Set<String> includes, Set<String> excludes, Map<String, String> renames,
+		Map<String, String> versions) {
 
-		super(logStream, isTerse, isVerbose, includes, excludes, renames);
+		super(logStream, isTerse, isVerbose, includes, excludes, renames, versions);
 	}
 
 	//
