@@ -666,7 +666,7 @@ public class JakartaTransformer {
 
     		ClassAction classAction = new ClassActionImpl(
     			getInfoStream(), isTerse, isVerbose,
-    			includes, excludes, packageRenames);
+    			includes, excludes, packageRenames, packageVersions);
 
     		classAction.apply(inputPath, inputStream, intLength, outputStream);
 
@@ -699,7 +699,7 @@ public class JakartaTransformer {
 
     		ServiceConfigAction configAction = new ServiceConfigActionImpl(
     			getInfoStream(), isTerse, isVerbose,
-    			includes, excludes, packageRenames);
+    			includes, excludes, packageRenames, packageVersions);
 
     		configAction.apply(inputPath, inputStream, intLength, outputStream);
 
@@ -773,7 +773,7 @@ public class JakartaTransformer {
 
     		JarAction jarAction = new JarActionImpl(
             	getInfoStream(), isTerse, isVerbose,
-            	includes, excludes, packageRenames);
+            	includes, excludes, packageRenames, packageVersions);
 
             jarAction.apply(inputPath, inputStream, outputPath, outputStream);
 

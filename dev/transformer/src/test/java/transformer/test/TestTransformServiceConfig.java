@@ -35,6 +35,18 @@ public class TestTransformServiceConfig {
 
 	public static final String JAVAX_SAMPLE = "javax.sample";
 	public static final String JAKARTA_SAMPLE = "jakarta.sample";
+	
+	public static final String JAVAX_SERVLET = "javax.servlet";
+	public static final String JAVAX_SERVLET_ANNOTATION = "javax.servlet.annotation";
+	public static final String JAVAX_SERVLET_DESCRIPTOR = "javax.servlet.descriptor";
+	public static final String JAVAX_SERVLET_HTTP = "javax.servlet.http";
+	public static final String JAVAX_SERVLET_RESOURCES = "javax.servlet.resources";	
+
+	public static final String JAKARTA_SERVLET_VERSION = "[2.6, 6.0)";
+	public static final String JAKARTA_SERVLET_ANNOTATION_VERSION  = "[2.6, 6.0)";
+	public static final String JAKARTA_SERVLET_DESCRIPTOR_VERSION  = "[2.6, 6.0)";
+	public static final String JAKARTA_SERVLET_HTTP_VERSION  = "[2.6, 6.0)";
+	public static final String JAKARTA_SERVLET_RESOURCES_VERSION  = "[2.6, 6.0)";
 
 	protected Set<String> includes;
 	
@@ -61,13 +73,13 @@ public class TestTransformServiceConfig {
 		}
 		return packageRenames;
 	}
-
+	
 	public ServiceConfigActionImpl jakartaServiceAction;
 	public ServiceConfigActionImpl javaxServiceAction;
 
 	public ServiceConfigActionImpl getJakartaServiceAction() {
 		if ( jakartaServiceAction == null ) {
-			jakartaServiceAction = new ServiceConfigActionImpl( getIncludes(), getExcludes(), getPackageRenames() );
+			jakartaServiceAction = new ServiceConfigActionImpl( getIncludes(), getExcludes(), getPackageRenames(), null );
 		}
 		return jakartaServiceAction;
 	}
@@ -75,7 +87,7 @@ public class TestTransformServiceConfig {
 	public ServiceConfigActionImpl getJavaxServiceAction() {
 		if ( javaxServiceAction == null ) {
 			Map<String, String> invertedRenames = JakartaTransformProperties.invert( getPackageRenames() );
-			javaxServiceAction = new ServiceConfigActionImpl( getIncludes(), getExcludes(), invertedRenames );
+			javaxServiceAction = new ServiceConfigActionImpl( getIncludes(), getExcludes(), invertedRenames, null );
 		}
 		return javaxServiceAction;
 	}

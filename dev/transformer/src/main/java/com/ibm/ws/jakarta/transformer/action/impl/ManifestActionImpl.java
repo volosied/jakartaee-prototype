@@ -40,7 +40,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 		boolean isManifest,
 		Map<String, String> versions) {
 
-		super(includes, excludes, renames);
+		super(includes, excludes, renames, versions);
 
 		this.isManifest = isManifest;
 		this.versions = new HashMap<String, String>(versions);
@@ -53,7 +53,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 		Map<String, String> versions) {
 
 		super(logStream, isTerse, isVerbose,
-		      includes, excludes, renames);
+		      includes, excludes, renames, versions);
 
 		this.isManifest = isManifest;
 		this.versions = new HashMap<String, String>(versions);
@@ -341,7 +341,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 
 		String initialText = text;
 
-		for ( Map.Entry<String, String> renameEntry : packageRenames.entrySet() ) {
+		for ( Map.Entry<String, String> renameEntry : getPackageRenames().entrySet() ) {
 			String key = renameEntry.getKey();
 			int keyLen = key.length();
 
@@ -356,18 +356,22 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 					break;
 				}
 				
-				//  Verify the match is not part of a longer package name.
-				//  If the match is at the very end of the text, then it is good.
-				//  If the match plus the next char is a valid identifier or if
-				//  the next char is a '.', then the match is part of a longer package name.
-				if ( textLimit > (matchStart + keyLen) ) {					
-					String matchPlusOneChar = text.substring(matchStart, matchStart + key.length()+1);
-					char charAfterMatch = text.charAt(matchStart+key.length());
-					if ( SourceVersion.isIdentifier(matchPlusOneChar) || ( charAfterMatch == '.')) {
-						lastMatchEnd = matchStart + keyLen; 
-						continue;
-					}
-				}
+				//  Verify the match is not part of a longer package name.				
+                if ( matchStart > 0 ) {
+                    char charBeforeMatch = text.charAt(matchStart - 1);
+                    if ( Character.isJavaIdentifierPart(charBeforeMatch) ) {
+                        lastMatchEnd = matchStart + keyLen; 
+                        continue;
+                    }
+                }
+                int matchEnd = matchStart + keyLen;
+                if ( textLimit > matchEnd ) {
+                    char charAfterMatch = text.charAt(matchEnd);
+                    if ( Character.isJavaIdentifierPart(charAfterMatch) ) {
+                        lastMatchEnd = matchStart + keyLen;
+                        continue;
+                    }
+                }
 
 				String value = renameEntry.getValue();
 				int valueLen = value.length();
@@ -376,7 +380,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 				String tail = text.substring(matchStart + keyLen);
 				
                 int tailLenBeforeReplaceVersion = tail.length();			
-				tail = replacePackageVersion(tail, versions.get(value));				
+				tail = replacePackageVersion(tail, getPackageVersions().get(value));				
 				int tailLenAfterReplaceVersion = tail.length();
 
 				text = head + value + tail;
