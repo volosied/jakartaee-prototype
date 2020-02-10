@@ -12,6 +12,8 @@ import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
+import javax.lang.model.SourceVersion;
+
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.ManifestAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
@@ -353,12 +355,18 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 				if ( matchStart == -1 ) {
 					break;
 				}
-
-				char charAfterMatch = text.charAt(matchStart+key.length());
-				if ( charAfterMatch == '.') {
-					// The match is part of a longer package name.  So not a match.
-					lastMatchEnd = matchStart + keyLen; 
-					continue;
+				
+				//  Verify the match is not part of a longer package name.
+				//  If the match is at the very end of the text, then it is good.
+				//  If the match plus the next char is a valid identifier or if
+				//  the next char is a '.', then the match is part of a longer package name.
+				if ( textLimit > (matchStart + keyLen) ) {					
+					String matchPlusOneChar = text.substring(matchStart, matchStart + key.length()+1);
+					char charAfterMatch = text.charAt(matchStart+key.length());
+					if ( SourceVersion.isIdentifier(matchPlusOneChar) || ( charAfterMatch == '.')) {
+						lastMatchEnd = matchStart + keyLen; 
+						continue;
+					}
 				}
 
 				String value = renameEntry.getValue();
