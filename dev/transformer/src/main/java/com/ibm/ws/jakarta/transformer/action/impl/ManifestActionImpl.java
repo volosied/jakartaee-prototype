@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -14,6 +15,7 @@ import java.util.jar.Manifest;
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.ManifestAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
+import com.ibm.ws.jakarta.transformer.util.ManifestWriter;
 
 import aQute.bnd.header.Attrs;
 import aQute.bnd.header.OSGiHeader;
@@ -23,6 +25,8 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 
 	public static final boolean IS_MANIFEST = true;
 	public static final boolean IS_FEATURE = !IS_MANIFEST;
+	public Map<String, String> versions;
+	
 
 	public ManifestActionImpl(ActionImpl parent, boolean isManifest) {
 		super(parent);
@@ -31,22 +35,26 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 
 	public ManifestActionImpl(
 		Set<String> includes, Set<String> excludes, Map<String, String> renames,
-		boolean isManifest) {
+		boolean isManifest,
+		Map<String, String> versions) {
 
 		super(includes, excludes, renames);
 
 		this.isManifest = isManifest;
+		this.versions = new HashMap<String, String>(versions);
 	}
 
 	public ManifestActionImpl(
 		PrintStream logStream, boolean isTerse, boolean isVerbose,
 		Set<String> includes, Set<String> excludes, Map<String, String> renames,
-		boolean isManifest) {
+		boolean isManifest,
+		Map<String, String> versions) {
 
 		super(logStream, isTerse, isVerbose,
 		      includes, excludes, renames);
 
 		this.isManifest = isManifest;
+		this.versions = new HashMap<String, String>(versions);
 	}
 
 	public ManifestActionImpl(ActionImpl parent) {
@@ -54,14 +62,15 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 	}
 
 	public ManifestActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames) {
-		this(includes, excludes, renames, IS_MANIFEST);
+		this(includes, excludes, renames, IS_MANIFEST, null);
 	}
 
 	public ManifestActionImpl(
 		PrintStream logStream, boolean isTerse, boolean isVerbose,
-		Set<String> includes, Set<String> excludes, Map<String, String> renames) {
+		Set<String> includes, Set<String> excludes, Map<String, String> renames,
+		Map<String, String> versions) {
 
-		this(logStream, isTerse, isVerbose, includes, excludes, renames, IS_MANIFEST);
+		this(logStream, isTerse, isVerbose, includes, excludes, renames, IS_MANIFEST, versions);
 	}
 
 	//
@@ -218,7 +227,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 			String finalValue = null;
 		
 			if (manifestKeysToTransform.contains(keyName)) {
-			   finalValue = replacePackages(initialValue);
+			   finalValue = replacePackages(keyName, initialValue);
 			}
 			
 			if ( finalValue == null ) {
@@ -244,7 +253,8 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 	}
 
 	protected void writeAsManifest(Manifest manifest, OutputStream outputStream) throws IOException {
-		manifest.write(outputStream); // throws IOException
+		//manifest.write(outputStream); // throws IOException
+		ManifestWriter.write(manifest, outputStream);
 	}
 
 	// Copied and updated from:
@@ -323,7 +333,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 	 * @return The text with all embedded package names replaced.  Null if no
 	 *     replacements were performed.
 	 */
-	protected String replacePackages(String text) {
+	protected String replacePackages(String mainAttribute, String text) {
 
 		// System.out.println("Initial text [ " + text + " ]");
 
@@ -346,19 +356,28 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 
 				char charAfterMatch = text.charAt(matchStart+key.length());
 				if ( charAfterMatch == '.') {
-					break;  // The match is part of a longer package name.  So not a match.
+					// The match is part of a longer package name.  So not a match.
+					lastMatchEnd = matchStart + keyLen; 
+					continue;
 				}
 
 				String value = renameEntry.getValue();
 				int valueLen = value.length();
 
-				String head = text.substring(0, matchStart);
+				String head = text.substring(0, matchStart);				
 				String tail = text.substring(matchStart + keyLen);
-				tail = replacePackageVersion(tail, "[4.0,5.0)");
-				text = head + value + tail;
+				
+                int tailLenBeforeReplaceVersion = tail.length();			
+				tail = replacePackageVersion(tail, versions.get(value));				
+				int tailLenAfterReplaceVersion = tail.length();
 
+				text = head + value + tail;
+				
 				lastMatchEnd = matchStart + valueLen;
+				
+				// Replacing the key or the version can increase or decrease the text length.
 				textLimit += (valueLen - keyLen);
+				textLimit += (tailLenAfterReplaceVersion - tailLenBeforeReplaceVersion);
 
 				// System.out.println("Next text [ " + text + " ]");
 			}
@@ -384,8 +403,8 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 	 *                  
 	 * @return String with version numbers of first package replaced by the newVersion.
 	 */
-	protected String replacePackageVersion(String text, String newVersion) {
-		verbose("replacePackageVersion: ( %s )\n",  text );
+	public String replacePackageVersion(String text, String newVersion) {
+		//verbose("replacePackageVersion: ( %s )\n",  text );
 		
 		String packageText = getPackageAttributeText(text);
 		
@@ -397,7 +416,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 			return text;
 		}
 		
-		verbose("replacePackageVersion: (packageText: %s )\n", packageText);
+		//verbose("replacePackageVersion: (packageText: %s )\n", packageText);
 		
 		final String VERSION = "version";
 		final int VERSION_LEN = 7;
@@ -456,8 +475,8 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
         			}
         			versionEndIndex--; // just before the 2nd quotation mark
         			
-        			verbose("versionBeginIndex = [%s]\n", versionBeginIndex);
-            		verbose("versionEndIndex = [%s]\n", versionEndIndex);
+        			//verbose("versionBeginIndex = [%s]\n", versionBeginIndex);
+            		//verbose("versionEndIndex = [%s]\n", versionEndIndex);
         			foundQuotationMark = true; // not necessary, just leave loop
         			break;
         		}
@@ -472,13 +491,13 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
         }
 		
     	String oldVersion = packageText.substring(versionBeginIndex, versionEndIndex+1);
-    	verbose("old version[ %s ] new version[ %s]\n", oldVersion, newVersion);
+    	//verbose("old version[ %s ] new version[ %s]\n", oldVersion, newVersion);
     	
     	String head = text.substring(0, versionBeginIndex);
     	String tail = text.substring(versionEndIndex+1);
     	
     	String newText = head + newVersion + tail;
-    	verbose("Old [%s] New [%s]\n", text , newText);
+    	//verbose("Old [%s] New [%s]\n", text , newText);
 		
 		return newText;
 	}
@@ -492,8 +511,8 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 	 *                      - If a comma is inside quotation marks, it is not a package delimiter.
 	 * @return
 	 */
-	protected String getPackageAttributeText(String text) {
-		verbose("getPackageAttributeText ENTER[ text: %s]\n", text);
+	public String getPackageAttributeText(String text) {
+		//verbose("getPackageAttributeText ENTER[ text: %s]\n", text);
 		
 		if (text == null) {
 			return null;
