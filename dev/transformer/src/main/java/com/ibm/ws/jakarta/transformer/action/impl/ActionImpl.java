@@ -79,7 +79,7 @@ public abstract class ActionImpl implements Action {
 
 	//
 
-	private final ActionImpl root;
+	protected final ActionImpl root;
 
 	public ActionImpl getRoot() {
 		return root;
@@ -372,8 +372,8 @@ public abstract class ActionImpl implements Action {
 
 	//
 
-	private final Map<String, String> packageRenames;
-	private final Map<String, String> binaryPackageRenames;
+	protected final Map<String, String> packageRenames;
+	protected final Map<String, String> binaryPackageRenames;
 	
 	/**
 	 * Replace a single package according to the package rename rules.
@@ -470,6 +470,7 @@ public abstract class ActionImpl implements Action {
 			}
 		}
 	}
+
 
     //
 

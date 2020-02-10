@@ -722,7 +722,8 @@ public class JakartaTransformer {
 
     		ManifestAction manifestAction = new ManifestActionImpl(
     			getInfoStream(), isTerse, isVerbose,
-    			includes, excludes, packageRenames, ManifestActionImpl.IS_MANIFEST);
+    			includes, excludes, packageRenames, ManifestActionImpl.IS_MANIFEST,
+    			packageVersions);
 
     		manifestAction.apply(inputPath, inputStream, intLength, outputStream);
 
@@ -745,7 +746,8 @@ public class JakartaTransformer {
 
         	ManifestAction featureAction = new ManifestActionImpl(
         		getInfoStream(), isTerse, isVerbose,
-        		includes, excludes, packageRenames, ManifestActionImpl.IS_FEATURE);
+        		includes, excludes, packageRenames, ManifestActionImpl.IS_FEATURE,
+        		packageVersions);
 
         	featureAction.apply(inputPath, inputStream, intLength, outputStream);
 
