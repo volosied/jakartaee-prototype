@@ -5,6 +5,15 @@ plugins {
   id 'maven'
 }
 
+      String[] bundlesNeedingChange = ["com.ibm.ws.org.apache.commons.fileupload_1.0.36.jar",
+                        "com.ibm.ws.session_1.0.36.jar",
+                        "com.ibm.ws.webcontainer.cors_1.0.36.jar",
+                        "com.ibm.ws.webcontainer.servlet.3.1_1.0.36.jar",
+                        "com.ibm.ws.webcontainer.servlet.4.0.factories_1.0.36.jar",
+                        "com.ibm.ws.webcontainer.servlet.4.0_1.0.36.jar",
+                        "com.ibm.ws.webcontainer_1.1.36.jar",
+                        "com.ibm.ws.webserver.plugin.runtime_1.0.36.jar"] 
+
 repositories {
   mavenCentral()
 }
@@ -19,10 +28,10 @@ configurations {
 }
 
 dependencies {
-  implementation 'biz.aQute.bnd:biz.aQute.bndlib:4.3.1'
-  implementation 'commons-cli:commons-cli:1.4'
+  compile 'biz.aQute.bnd:biz.aQute.bndlib:4.3.1'
+  compile 'commons-cli:commons-cli:1.4'
 
-  runtimeOnly 'org.slf4j:slf4j-simple:1.7.29'
+  compile 'org.slf4j:slf4j-simple:1.7.29'
 
   testImplementation 'org.junit.jupiter:junit-jupiter:5.5.2'
   testImplementation 'org.assertj:assertj-core:3.14.0'
@@ -71,3 +80,66 @@ task downloadArchives(type: Copy) {
   into "${buildDir}/archives"
   from configurations.archive
 }
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.ibm.ws.jakarta.transformer.JakartaTransformer'
+        attributes 'Class-Path': configurations.compile.collect { it.name }.join(' ')
+    }
+}
+
+task copyLibs(type: Copy) {
+    from configurations.compile
+    into 'build/libs/'
+}
+
+task runJar() {
+
+bundlesNeedingChange.each { file -> 
+  doLast {
+    mkdir "../source.image/mini-liberty-image/wlp/lib/jakarta"
+    javaexec {
+      classpath = sourceSets.main.runtimeClasspath
+      main = "com.ibm.ws.jakarta.transformer.JakartaTransformer";
+      args = [
+              "-j",
+              "../source.image/mini-liberty-image/wlp/lib/$file",
+              "-o",
+              "../source.image/mini-liberty-image/wlp/lib/jakarta/$file"
+            ]
+    }
+  
+  }
+  }
+}
+
+task rename(){
+
+
+           bundlesNeedingChange.each  { file -> 
+            doLast {
+               delete{
+      delete "../source.image/mini-liberty-image/wlp/lib/$file"
+    }
+               // println("../source.image/mini-liberty-image/wlp/lib/_$file".toString())
+          
+}
+           }
+}
+
+
+task copyJakartfiedJars(type:Copy){
+            from "../source.image/mini-liberty-image/wlp/lib/jakarta/"
+            into '../source.image/mini-liberty-image/wlp/lib/'
+            doLast{
+
+              delete {
+                    delete '../source.image/mini-liberty-image/wlp/lib/jakarta'
+              }
+            }
+}
+
+copyJakartfiedJars.dependsOn rename
+rename.dependsOn runJar
+runJar.dependsOn copyLibs
+
