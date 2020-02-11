@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019 IBM Corporation and others.
+ * Copyright (c) 2020 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -9,72 +9,102 @@
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
 
-defaultTasks 'installLiberty'
+// By default download a liberty image, minify the image to 
+
+defaultTasks 'unpackImage'
+
+// Obtain the standard 'clean' task.
+
+apply plugin: 'base'
+
+//
 
 buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath group: 'net.wasdev.wlp.gradle.plugins',
-                  name: 'liberty-gradle-plugin',
-                  version: '2.7'
-    }
+  repositories {
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath group: 'net.wasdev.wlp.gradle.plugins',
+              name: 'liberty-gradle-plugin',
+              version: '2.7'
+  }
 }
 
-// Obtain 'installLiberty'
 apply plugin: 'liberty'
 
-// Obtain 'clean'
-apply plugin: 'java'
-
-// May be needed? 
-//apply plugin: 'base'
-
 repositories {
-    mavenCentral()
+  mavenCentral()
 }
 
+ext {
+  libertyVersion = '20.0.0.1'
+  profileType    = 'servlet.4'
+  libertyCoords  = "io.openliberty:openliberty-webProfile8:$libertyVersion"
+}
+
+println 'Liberty Version: ' + libertyVersion
+println 'Profile Type: ' + profileType
+println 'Liberty Coordinates: ' + libertyCoords
+
 dependencies {
-   libertyRuntime 'io.openliberty:openliberty-webProfile8:20.0.0.1'
+  libertyRuntime libertyCoords
+}
+
+//
+
+ext {
+  profileArchives = "$buildDir" + '/imageArchives'
+  profilePrefix   = 'liberty.' + libertyVersion + '.' + profileType
+  profileArchive  = "$profileArchives" + '/' + profilePrefix + '.zip'
+}
+
+task prepareProfiles() {
+  println 'Target Archive: ' + profileArchive
+  mkdir profileArchives
 }
 
 liberty {
-    server {
+  def sourceConfig = 'src/config/' + profileType + '/server.xml'
+  println 'Source Configuration: ' + sourceConfig
 
-        //Only contains the servlet-4.0 feature
-        configFile = file('config/server.xml')
+  server {
+    configFile = file(sourceConfig)
 
-        // May not be necessary? 
-        features {
-            acceptLicense = true
-        }
-
-        packageLiberty {
-            archive = "minified_20.0.0.1.zip"
-            include = "minify"
-        }
-
+    features {
+      acceptLicense = true
     }
+
+    packageLiberty {
+      archive = profileArchive
+      include = 'minify'
+    }
+  }
 }
 
-task unzipImage(type: Copy) {
-    def zipFile = file('minified_20.0.0.1.zip')
-    def outputDir = file("mini-liberty-image")
+task createImage {
+  dependsOn 'prepareProfiles'
+  dependsOn 'installLiberty'
+  dependsOn 'libertyCreate'
+  dependsOn 'libertyPackage'
+  dependsOn 'libertyStop'
 
-    from zipTree(zipFile)
-    into outputDir
+  tasks.findByName('libertyCreate').mustRunAfter 'installLiberty'
+  tasks.findByName('libertyPackage').mustRunAfter 'libertyCreate'
+  tasks.findByName('libertyStop').mustRunAfter 'libertyPackage'
 }
 
-task createMinifiedImage {
-    dependsOn 'clean'
-    dependsOn 'installLiberty'
-    dependsOn 'libertyCreate'
-    dependsOn 'libertyPackage'
-    dependsOn 'libertyStop'
+ext {
+  profileImages  = "$buildDir" + '/images/'
+  profileImage   = "$profileImages" + '/' + profilePrefix
+}
 
-    //install & create must run before packaging
-    tasks.findByName('libertyCreate').mustRunAfter 'installLiberty'
-    tasks.findByName('libertyPackage').mustRunAfter 'libertyCreate'
-    tasks.findByName('unzipImage').mustRunAfter 'libertyPackage'
+task unpackImage(type: Copy) {
+  dependsOn 'createImage'
+
+  println 'Target Image: ' + profileImage
+  mkdir profileImages
+
+  from zipTree( file(profileArchive) )
+  into file(profileImage)
 }
