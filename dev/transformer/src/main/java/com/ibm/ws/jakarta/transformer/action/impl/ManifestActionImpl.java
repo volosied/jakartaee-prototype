@@ -12,8 +12,6 @@ import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
-import javax.lang.model.SourceVersion;
-
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.ManifestAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
@@ -327,6 +325,37 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 	}
 	
 	/**
+	 * Checks the character before and after a match to verify that the match
+	 * is NOT a subset of a larger package, and thus not really a match.
+	 *
+	 * @param text
+	 * @param textLimit
+	 * @param lastMatchEnd
+	 * @param matchStart
+	 * @param keyLen
+	 * @return
+	 */
+	protected boolean isTrueMatch(String text, int textLimit, int matchStart, int keyLen ) {
+		
+		//  Verify the match is not part of a longer package name.				
+        if ( matchStart > 0 ) {
+            char charBeforeMatch = text.charAt(matchStart - 1);
+            if ( Character.isJavaIdentifierPart(charBeforeMatch) || (charBeforeMatch == '.')) { 
+                return false;
+            }
+        }
+        int matchEnd = matchStart + keyLen;
+        if ( textLimit > matchEnd ) {
+            char charAfterMatch = text.charAt(matchEnd);
+            if ( Character.isJavaIdentifierPart(charAfterMatch) || (charAfterMatch == '.') ) {
+                return false;
+            }
+        }
+        return true;
+	}
+	
+	
+	/**
 	 * Replace all embedded packages of specified text with replacement
 	 * packages.
 	 *
@@ -356,22 +385,10 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 					break;
 				}
 				
-				//  Verify the match is not part of a longer package name.				
-                if ( matchStart > 0 ) {
-                    char charBeforeMatch = text.charAt(matchStart - 1);
-                    if ( Character.isJavaIdentifierPart(charBeforeMatch) ) {
-                        lastMatchEnd = matchStart + keyLen; 
-                        continue;
-                    }
-                }
-                int matchEnd = matchStart + keyLen;
-                if ( textLimit > matchEnd ) {
-                    char charAfterMatch = text.charAt(matchEnd);
-                    if ( Character.isJavaIdentifierPart(charAfterMatch) ) {
-                        lastMatchEnd = matchStart + keyLen;
-                        continue;
-                    }
-                }
+				if ( !isTrueMatch(text, textLimit, matchStart, keyLen) ) {
+					lastMatchEnd = matchStart + keyLen;
+					continue;
+				}
 
 				String value = renameEntry.getValue();
 				int valueLen = value.length();
@@ -415,7 +432,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 	 *                  
 	 * @return String with version numbers of first package replaced by the newVersion.
 	 */
-	public String replacePackageVersion(String text, String newVersion) {
+	protected String replacePackageVersion(String text, String newVersion) {
 		//verbose("replacePackageVersion: ( %s )\n",  text );
 		
 		String packageText = getPackageAttributeText(text);
@@ -523,7 +540,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 	 *                      - If a comma is inside quotation marks, it is not a package delimiter.
 	 * @return
 	 */
-	public String getPackageAttributeText(String text) {
+	protected String getPackageAttributeText(String text) {
 		//verbose("getPackageAttributeText ENTER[ text: %s]\n", text);
 		
 		if (text == null) {

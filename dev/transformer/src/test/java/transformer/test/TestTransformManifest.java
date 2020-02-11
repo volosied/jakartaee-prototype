@@ -1,9 +1,12 @@
 package transformer.test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,7 +49,7 @@ public class TestTransformManifest {
 	public static final int SERVLET_HTTP_COUNT = 23;
 
 	protected Set<String> includes;
-
+	
 	public Set<String> getIncludes() {
 		if ( includes == null ) {
 			includes = new HashSet<String>();
@@ -285,73 +288,217 @@ public class TestTransformManifest {
 	String expectedResultText12_GetPackageText = ";version=\"[2.6,3),"; // missing quote (no version replacement)
 	String expectedResultText13_GetPackageText = "";  //Not starting with ';' produces empty string
 	
+	
+	/**
+	 * Subclass which allows us to call protected methods of ManifestActionImpl
+	 */
+	class ManifestActionImplSubClass extends ManifestActionImpl {
+		public ManifestActionImplSubClass(
+				PrintStream logStream, boolean isTerse, boolean isVerbose,
+				Set<String> includes, Set<String> excludes, Map<String, String> renames,
+				Map<String, String> versions) {
+
+				super(logStream, isTerse, isVerbose,
+				      includes, excludes, renames, versions);
+			}
+		
+		public boolean callIsTrueMatch(String text, int textLimit, int matchStart, int keyLen ) {
+			return isTrueMatch(text, textLimit, matchStart, keyLen );
+		}
+		
+		public String callReplacePackageVersion(String embeddingText, String newVersion) {
+			return replacePackageVersion(embeddingText, newVersion);
+		}
+		
+		public String callGetPackageAttributeText(String embeddingText) {
+			return getPackageAttributeText(embeddingText);
+		}
+		
+	}
+	
+	@Test
+	void testIsTrueMatch() {
+		ManifestActionImplSubClass mai = new ManifestActionImplSubClass(System.out, 
+                !ActionImpl.IS_TERSE, 
+                ActionImpl.IS_VERBOSE,
+                getIncludes(), 
+                getExcludes(), 
+                getPackageRenames(),
+                getPackageVersions());
+		
+		boolean result;
+		
+		//  *** TEST CASES ****
+        // 1.  myPackage            YES  -- package is exact length of search text
+        //
+        // 2.  myPackage.           NO   -- trailing '.' indicates part of a larger package
+        // 3.  myPackage,           YES  -- trailing ',' not part of a package name
+        // 4.  myPackage;           YES  -- trailing ';' not part of a package name
+        // 5.  myPackage$           NO   -- trailing '$' indicates part of a larger package
+        // 6.  myPackage=           YES  -- trailing '=' not part of a package name, but likely busted syntax
+        // 7.  "myPackage" + " "    YES  -- trailing ' ' not part of a package name
+        //
+        // 8.  =myPackage           YES  -- leading '=' not part of a package name, but likely busted syntax
+        // 9.  .myPackage           NO   -- leading '.' indicates part of a larger package
+        //10.  ,myPackage           YES  -- leading ',' not part of a package name
+        //11.  ;myPackage           YES  -- leading ';' not part of a package name
+        //12.  $myPackage           NO   -- leading '$' indicates part of a larger package
+        //13.  " " + myPackage      YES  -- leading ' ' not part of a package name
+        //
+        //14.  myPachagePlus        NO   -- trailing valid java identifier indicates part of a larger package
+        //15.  plusmyPackage        NO   -- leading valid java identifier indicates part of a larger package
+
+		
+		final String TEXT = "=abc.defgh,ijklm;nopqrs$tuv wxyz= ";
+		int textLen = TEXT.length();
+		int matchStart;
+		int keyLen;
+		
+	    matchStart = 0;  // Test 1
+	    keyLen = 3;
+		result = mai.callIsTrueMatch("abc", 3, matchStart, keyLen);
+		assertTrue(result, "(Package name == text) is MATCH");    
+		
+	    matchStart = 1;  // Test 2 "abc"   Trailing period   
+	    keyLen = 3;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertFalse(result, "('.' after key) is NO MATCH");
+	
+	    matchStart = 1; //  Test 3 "abc.defgh"   Trailing comma 
+	    keyLen = 9;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertTrue(result, "(',' after key) is MATCH");	
+		
+	    matchStart = 11; //  Test 4 "ijklm"   Trailing semicolon 
+	    keyLen = 5;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertTrue(result, "(';' after key) is MATCH");
+		
+	    matchStart = 17; //  Test 5 "nopqrs"   Trailing $ 
+	    keyLen = 6;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertFalse(result, "('$' after key) is MATCH");
+		
+	    matchStart = 28; //  Test 6 "wxyz"   Trailing = 
+	    keyLen = 4;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertTrue(result, "('=' after key) is MATCH");
+		
+	    matchStart = 17; //  Test 7 "nopqrs$tuv"   Trailing ' ' 
+	    keyLen = 10;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertTrue(result, "(' ' after key) is MATCH");
+		
+	    matchStart = 1; //  Test 8 "abc.defgh"   Prior char "="
+	    keyLen = 9;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertTrue(result, "('=' before key) is MATCH");
+				
+	    matchStart = 5; //  Test 9 "defgh"   Prior char "."
+	    keyLen = 5;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertFalse(result, "('.' before key) is NO MATCH");
+		
+	    matchStart = 11; //  Test 10 "ijklm"   Prior char ","
+	    keyLen = 5;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertTrue(result, "(',' before key) is MATCH");
+		
+	    matchStart = 17; //  Test 11 "nopqrs$tuv"   Prior char ";"
+	    keyLen = 10;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertTrue(result, "(';' before key) is MATCH");
+		
+	    matchStart = 24; //  Test 12 "tuv"   Prior char "$"
+	    keyLen = 3;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertFalse(result, "('$' before key) is NO MATCH");
+				
+	    matchStart = 28; //  Test 13 "wxyz"   Prior char " "
+	    keyLen = 4;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertTrue(result, "(' ' before key) is MATCH");
+			
+	    matchStart = 17; //  Test 14 "no"   char after is a valid package char
+	    keyLen = 2;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertFalse(result, "(valid package character after key) is NO MATCH");
+		
+	    matchStart = 8; //  Test 15 "gh"   char before is a valid package char
+	    keyLen = 2;
+		result = mai.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		assertFalse(result, "(valid package character before key) is NO MATCH");
+	}
+	
 	@Test
 	void testReplacePackageVersionInEmbeddingText() {
-		ManifestActionImpl mai = new ManifestActionImpl(System.out, 
-				                                        !ActionImpl.IS_TERSE, 
-				                                        ActionImpl.IS_VERBOSE,
-				                                        getIncludes(), 
-				                                        getExcludes(), 
-				                                        getPackageRenames(),
-				                                        getPackageVersions());
+		
+			
+		ManifestActionImplSubClass mai = new ManifestActionImplSubClass(System.out, 
+                                                                       !ActionImpl.IS_TERSE, 
+                                                                       ActionImpl.IS_VERBOSE,
+                                                                       getIncludes(), 
+                                                                       getExcludes(), 
+                                                                       getPackageRenames(),
+                                                                       getPackageVersions());
 		String result;
 		
-		result = mai.replacePackageVersion(embeddingText1, newVersion);		
+		result = mai.callReplacePackageVersion(embeddingText1, newVersion);
 		assertEquals(expectedResultText1_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText1_ReplaceVersion + "\nactual:" + result + "\n");	
 		
-		result = mai.replacePackageVersion(embeddingText2, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText2, newVersion);
 		assertEquals(expectedResultText2_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText2_ReplaceVersion + "\nactual:" + result + "\n");
 		
-		result = mai.replacePackageVersion(embeddingText3, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText3, newVersion);
 		assertEquals(expectedResultText3_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText3_ReplaceVersion + "\nactual:" + result + "\n");
 		
-		result = mai.replacePackageVersion(embeddingText4, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText4, newVersion);
 		assertEquals(expectedResultText4_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText4_ReplaceVersion + "\nactual:" + result + "\n");
 		
-		result = mai.replacePackageVersion(embeddingText5, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText5, newVersion);
 		assertEquals(expectedResultText5_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText5_ReplaceVersion + "\nactual:" + result + "\n");
 		
-		result = mai.replacePackageVersion(embeddingText6, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText6, newVersion);
 		assertEquals(expectedResultText6_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText6_ReplaceVersion + "\nactual:" + result + "\n");
 		
-		result = mai.replacePackageVersion(embeddingText7, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText7, newVersion);
 		assertEquals(expectedResultText7_ReplaceVersion,
                    result,
 				     "Result not expected:\nexpected: " + expectedResultText7_ReplaceVersion + "\nactual:" + result + "\n");
 		
-		result = mai.replacePackageVersion(embeddingText9, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText9, newVersion);
 		assertEquals(expectedResultText9_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText9_ReplaceVersion + "\nactual:" + result + "\n");
 		
-		result = mai.replacePackageVersion(embeddingText10, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText10, newVersion);
 		assertEquals(expectedResultText10_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText10_ReplaceVersion + "\nactual:" + result + "\n");
 		
-		result = mai.replacePackageVersion(embeddingText11, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText11, newVersion);
 		assertEquals(expectedResultText11_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText11_ReplaceVersion + "\nactual:" + result + "\n");
 		
-		result = mai.replacePackageVersion(embeddingText12, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText12, newVersion);
 		assertEquals(expectedResultText12_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText12_ReplaceVersion + "\nactual:" + result + "\n");
 		
-		result = mai.replacePackageVersion(embeddingText13, newVersion);
+		result = mai.callReplacePackageVersion(embeddingText13, newVersion);
 		assertEquals(expectedResultText13_ReplaceVersion,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText13_ReplaceVersion + "\nactual:" + result + "\n");
@@ -361,71 +508,73 @@ public class TestTransformManifest {
 	
 	@Test
 	void testGetPackageAttributeText() {
-		ManifestActionImpl mai = new ManifestActionImpl(System.out, 
-                                                        !ActionImpl.IS_TERSE, 
-                                                        ActionImpl.IS_VERBOSE,
-                                                        getIncludes(), 
-                                                        getExcludes(), 
-                                                        getPackageRenames(),
-                                                        getPackageVersions());
+		
+		ManifestActionImplSubClass mai = new ManifestActionImplSubClass(System.out, 
+                !ActionImpl.IS_TERSE, 
+                ActionImpl.IS_VERBOSE,
+                getIncludes(), 
+                getExcludes(), 
+                getPackageRenames(),
+                getPackageVersions());
+		
 		String result;
 		
-		result = mai.getPackageAttributeText(embeddingText1);		
+		result = mai.callGetPackageAttributeText(embeddingText1);		
 		assertEquals(expectedResultText1_GetPackageText,
 				     result, 
 				     "Result not expected:\nexpected: " + expectedResultText1_GetPackageText + "\nactual:" + result + "\n");	
 		
-		result = mai.getPackageAttributeText(embeddingText2);
+		result = mai.callGetPackageAttributeText(embeddingText2);
 		assertEquals(expectedResultText2_GetPackageText,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText2_GetPackageText + "\nactual:" + result + "\n");
 		
-		result = mai.getPackageAttributeText(embeddingText3);
+		result = mai.callGetPackageAttributeText(embeddingText3);
 		assertEquals(expectedResultText3_GetPackageText, 
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText3_GetPackageText + "\nactual:" + result + "\n");
 		
-		result = mai.getPackageAttributeText(embeddingText4);
+		result = mai.callGetPackageAttributeText(embeddingText4);
 		assertEquals(expectedResultText4_GetPackageText, 
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText4_GetPackageText + "\nactual:" + result + "\n");
 		
-		result = mai.getPackageAttributeText(embeddingText5);
+		result = mai.callGetPackageAttributeText(embeddingText5);
 		assertEquals(expectedResultText5_GetPackageText,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText5_GetPackageText + "\nactual:" + result + "\n");
 	
-		result = mai.getPackageAttributeText(embeddingText7);
+		result = mai.callGetPackageAttributeText(embeddingText7);
 		assertEquals(expectedResultText7_GetPackageText, 
                    result,
 				     "Result not expected:\nexpected: " + expectedResultText7_GetPackageText + "\nactual:" + result + "\n");
 		
-		result = mai.getPackageAttributeText(embeddingText8);
+		result = mai.callGetPackageAttributeText(embeddingText8);
 		assertEquals(expectedResultText8_GetPackageText,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText8_GetPackageText + "\nactual:" + result + "\n");
 	
-		result = mai.getPackageAttributeText(embeddingText9);
+		result = mai.callGetPackageAttributeText(embeddingText9);
 		assertEquals(expectedResultText9_GetPackageText,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText9_GetPackageText + "\nactual:" + result + "\n");
 		
-		result = mai.getPackageAttributeText(embeddingText10);
+		result = mai.callGetPackageAttributeText(embeddingText10);
 		assertEquals(expectedResultText10_GetPackageText,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText10_GetPackageText + "\nactual:" + result + "\n");
 		
-		result = mai.getPackageAttributeText(embeddingText11);
+		result = mai.callGetPackageAttributeText(embeddingText11);
 		assertEquals(expectedResultText11_GetPackageText,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText11_GetPackageText + "\nactual:" + result + "\n");
 		
-		result = mai.getPackageAttributeText(embeddingText12);
+		result = mai.callGetPackageAttributeText(embeddingText12);
 		assertEquals(expectedResultText12_GetPackageText,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText12_GetPackageText + "\nactual:" + result + "\n");
 	
-		result = mai.getPackageAttributeText(embeddingText13);
+		result = mai.callGetPackageAttributeText(embeddingText13);
 		assertEquals(expectedResultText13_GetPackageText,
 				     result,
 				     "Result not expected:\nexpected: " + expectedResultText13_GetPackageText + "\nactual:" + result + "\n");
