@@ -9,7 +9,7 @@
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
 
-defaultTasks 'installLiberty'
+import java.util.jar.Manifest
 
 buildscript {
     repositories {
@@ -35,8 +35,12 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    toCopy
+}
 dependencies {
    libertyRuntime 'io.openliberty:openliberty-webProfile8:20.0.0.1'
+   toCopy 'jakarta.servlet:jakarta.servlet-api:5.0.0-M1'
 }
 
 liberty {
@@ -60,21 +64,92 @@ liberty {
 
 task unzipImage(type: Copy) {
     def zipFile = file('minified_20.0.0.1.zip')
-    def outputDir = file("mini-liberty-image")
+    def outputDir = file("mini-image")
 
     from zipTree(zipFile)
     into outputDir
 }
 
-task createMinifiedImage {
-    dependsOn 'clean'
-    dependsOn 'installLiberty'
-    dependsOn 'libertyCreate'
-    dependsOn 'libertyPackage'
-    dependsOn 'libertyStop'
-
-    //install & create must run before packaging
-    tasks.findByName('libertyCreate').mustRunAfter 'installLiberty'
-    tasks.findByName('libertyPackage').mustRunAfter 'libertyCreate'
-    tasks.findByName('unzipImage').mustRunAfter 'libertyPackage'
+task getImage{
+    doLast {
+        println "Retrieved Libety and created minified image"
+    }
 }
+
+task download(type: Copy) {
+    from configurations.toCopy 
+    into 'mini-image/wlp/dev/api/spec'
+    doLast {
+        println "Downloaded Jarkarta M1 Servlet Jar"
+    }
+}
+
+task unzipJakarta(type:Copy){
+    from zipTree("mini-image/wlp/dev/api/spec/jakarta.servlet-api-5.0.0-M1.jar")
+    into "$buildDir/tmp/"   
+}
+
+task copyResourcePackage(type: Copy) {
+    def subDir = "javax/servlet/resources/"
+    from zipTree("mini-image/wlp/dev/api/spec/com.ibm.websphere.javaee.servlet.4.0_1.0.36.jar").matching {include "$subDir/**"}
+    into "$buildDir/tmp/"                        
+    eachFile { fcp ->
+        fcp.path = fcp.path.replaceFirst("javax", 'jakarta')
+    }
+    includeEmptyDirs false
+    doLast {
+        println "Retrieved servlet.resources from the ibm servlet api jar."
+        addExport()
+    }
+}
+
+task zipJakarta(type: Zip) {
+    archiveFileName = "jakarta.servlet-api-5.0.0-1.jar"
+    from "$buildDir/tmp"
+    destinationDirectory = file("mini-image/wlp/dev/api/spec/")
+
+    doLast {
+       delete "$buildDir/tmp" 
+       println "Repackaged jakarta m1 servlet with jakarta.servlet.resources."
+    }
+}
+
+task addJakarta() {
+    doLast {
+        println "Jarkarta added succesfullly to minified liberty image"
+    }
+}
+
+
+//HELPER METHOD 
+def addExport() {
+    def is = new File("build/tmp/META-INF/MANIFEST.MF").newInputStream()
+    Manifest manifest = new Manifest(is);
+    for(Object key : manifest.getMainAttributes().keySet()){
+        if(key.toString().indexOf("Export-Package") == 0){
+            String value =  manifest.getMainAttributes().get(key)
+             manifest.getMainAttributes().put(key, value + ',jakarta.servlet.resources;version="5.0.0"')
+        } 
+    }
+    OutputStream os = new FileOutputStream("build/tmp/META-INF/MANIFEST.MF");
+    manifest.write(os)
+
+    println "Added `jakarta.servlet.resources` to the  Export-Package Manifest attribute"
+}
+
+
+//Downloads and setups Jakarta Servlet Image
+addJakarta.dependsOn zipJakarta
+zipJakarta.dependsOn copyResourcePackage
+copyResourcePackage.dependsOn unzipJakarta
+unzipJakarta.dependsOn download
+
+
+//Downloads Libety Image & Minifies it
+getImage.dependsOn unzipImage
+unzipImage.dependsOn libertyPackage
+libertyPackage.dependsOn libertyCreate
+libertyCreate.dependsOn installLiberty
+
+
+addJakarta.mustRunAfter getImage
