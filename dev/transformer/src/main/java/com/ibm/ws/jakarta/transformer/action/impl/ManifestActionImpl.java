@@ -24,9 +24,7 @@ import aQute.bnd.header.Parameters;
 public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 
 	public static final boolean IS_MANIFEST = true;
-	public static final boolean IS_FEATURE = !IS_MANIFEST;
-	public Map<String, String> versions;
-	
+	public static final boolean IS_FEATURE = !IS_MANIFEST;	
 
 	public ManifestActionImpl(ActionImpl parent, boolean isManifest) {
 		super(parent);
@@ -41,7 +39,6 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 		super(includes, excludes, renames, versions);
 
 		this.isManifest = isManifest;
-		this.versions = new HashMap<String, String>(versions);
 	}
 
 	public ManifestActionImpl(
@@ -54,7 +51,6 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 		      includes, excludes, renames, versions);
 
 		this.isManifest = isManifest;
-		this.versions = new HashMap<String, String>(versions);
 	}
 
 	public ManifestActionImpl(ActionImpl parent) {
@@ -519,7 +515,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
         	}
         }
 		
-    	String oldVersion = packageText.substring(versionBeginIndex, versionEndIndex+1);
+    	//String oldVersion = packageText.substring(versionBeginIndex, versionEndIndex+1);
     	//verbose("old version[ %s ] new version[ %s]\n", oldVersion, newVersion);
     	
     	String head = text.substring(0, versionBeginIndex);
