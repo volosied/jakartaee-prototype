@@ -1,0 +1,14 @@
+
+
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+project(':transformer') {
+    apply plugin:  'java-library'
+    apply plugin:  'eclipse'
+    apply plugin:  'application'
+    apply plugin: 'maven'
+}
