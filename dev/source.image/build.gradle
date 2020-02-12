@@ -10,6 +10,9 @@
  *******************************************************************************/
 
 // By default download a liberty image, minify the image to 
+import java.util.jar.Manifest
+import org.gradle.api.DefaultTask
+import org.gradle.api.tasks.TaskAction
 
 defaultTasks 'unpackImage'
 
@@ -33,10 +36,6 @@ buildscript {
 
 apply plugin: 'liberty'
 
-repositories {
-  mavenCentral()
-}
-
 ext {
   libertyVersion = '20.0.0.1'
   profileType    = 'servlet.4'
@@ -50,8 +49,6 @@ println 'Liberty Coordinates: ' + libertyCoords
 dependencies {
   libertyRuntime libertyCoords
 }
-
-//
 
 ext {
   profileArchives = "$buildDir" + '/imageArchives'
@@ -87,11 +84,16 @@ task createImage {
   dependsOn 'installLiberty'
   dependsOn 'libertyCreate'
   dependsOn 'libertyPackage'
-  dependsOn 'libertyStop'
 
   tasks.findByName('libertyCreate').mustRunAfter 'installLiberty'
   tasks.findByName('libertyPackage').mustRunAfter 'libertyCreate'
-  tasks.findByName('libertyStop').mustRunAfter 'libertyPackage'
+
+  //Optional? 
+  doLast {
+    delete {
+      delete "$buildDir/wlp"
+    }
+  }
 }
 
 ext {

@@ -1,0 +1,3 @@
+rootProject.name = 'main'
+
+include 'source.image', 'transformed.image', 'transformer'
