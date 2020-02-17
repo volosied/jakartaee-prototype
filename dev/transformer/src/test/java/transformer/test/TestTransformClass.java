@@ -1,20 +1,34 @@
 package transformer.test;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.JakartaTransformProperties;
+import com.ibm.ws.jakarta.transformer.JakartaTransformer;
 import com.ibm.ws.jakarta.transformer.action.Action;
+import com.ibm.ws.jakarta.transformer.action.ClassAction;
+import com.ibm.ws.jakarta.transformer.action.ClassChanges;
+import com.ibm.ws.jakarta.transformer.action.impl.ActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ClassActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.JarActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ServiceConfigActionImpl;
+import com.ibm.ws.jakarta.transformer.util.FileUtils;
+import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
 import transformer.test.data.Sample_InjectAPI_Jakarta;
 import transformer.test.data.Sample_InjectAPI_Javax;
@@ -160,5 +174,78 @@ public class TestTransformClass {
 
 		System.out.println("Loaded [ " + className + " ]: " + testClass);
 		return testClass;
+	}
+
+	public static InputStream getResourceStream(String resourceName) throws IOException {
+		InputStream inputStream = TestUtils.getResourceStream(resourceName);
+		if ( inputStream == null ) {
+			throw new IOException("Resource not found [ " + resourceName + " ]");
+		}
+		return inputStream;
+	}
+
+	public static final String TEST_DATA_RESOURCE_NAME = "transformer/test/data";
+	public static final String ANNOTATED_SERVLET_RESOURCE_NAME = "AnnotatedServlet.class";
+	
+	public static final String TRANSFORMER_RESOURCE_NAME = "com/ibm/ws/jakarta/transformer";
+
+	public static Map<String, String> getStandardRenames() throws IOException {
+		String transformerResourceName = JakartaTransformer.class.getPackage().getName().replace('.', '/');
+		String renamesResourceName = transformerResourceName + '/' + JakartaTransformer.DEFAULT_RENAMES_REFERENCE;
+
+		InputStream renamesInputStream = getResourceStream(renamesResourceName); // throws IOException
+		Reader renamesReader = new InputStreamReader(renamesInputStream);
+
+		Properties renameProperties = new Properties();
+		renameProperties.load(renamesReader); // throws IOException
+
+		Map<String, String> renames = new HashMap<String, String>( renameProperties.size() );
+		for ( Map.Entry<Object, Object> renameEntry : renameProperties.entrySet() ) {
+			String initialPackageName = (String) renameEntry.getKey(); 
+			String finalPackageName = (String) renameEntry.getValue();
+			renames.put(initialPackageName, finalPackageName);
+		}
+
+		return renames;
+	}
+
+	public ClassAction createStandardClassAction() throws IOException {
+		return new ClassActionImpl(
+			System.out, !ActionImpl.IS_TERSE, ActionImpl.IS_VERBOSE,
+			Collections.emptySet(), Collections.emptySet(),
+			getStandardRenames(), null, null );
+		// 'getStandardRenames' throws IOException
+	}
+
+	// @Test
+	public void testAnnotatedServlet() throws JakartaTransformException, IOException {
+		ClassAction classAction = createStandardClassAction(); // throws IOException
+
+		String resourceName = TEST_DATA_RESOURCE_NAME + '/' + ANNOTATED_SERVLET_RESOURCE_NAME;
+		InputStream inputStream = getResourceStream(resourceName); // throws IOException
+
+		InputStreamData outputStreamData = classAction.apply(resourceName, inputStream); // throws JakartaTransformException
+		display( classAction.getChanges() );
+
+		OutputStream outputStream = new FileOutputStream(ANNOTATED_SERVLET_RESOURCE_NAME); // throws FileNotFoundException
+		try {
+			FileUtils.transfer(outputStreamData.stream, outputStream); // throws IOException
+		} finally {
+			outputStream.close(); // throws IOException
+		}
+	}
+
+	public void display(ClassChanges classChanges) {
+		System.out.println("Input class [ " + classChanges.getInputClassName() + " ]");
+		System.out.println("Output class [ " + classChanges.getOutputClassName() + " ]");
+
+		System.out.println("Input super class [ " + classChanges.getInputSuperName() + " ]");
+		System.out.println("Output super class [ " + classChanges.getOutputSuperName() + " ]");
+		
+		System.out.println("Modified interfaces [ " + classChanges.getModifiedInterfaces() + " ]");
+		System.out.println("Modified fields [ " + classChanges.getModifiedFields() + " ]");
+		System.out.println("Modified methods [ " + classChanges.getModifiedMethods() + " ]");
+		System.out.println("Modified constants [ " + classChanges.getModifiedConstants() + " ]");
+		System.out.println("Modified attributes [ " + classChanges.getModifiedAttributes() + " ]");
 	}
 }
