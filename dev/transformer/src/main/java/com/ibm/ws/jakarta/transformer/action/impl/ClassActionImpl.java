@@ -98,8 +98,10 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		super(parentAction);
 	}
 
-	public ClassActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames,
-			Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
+	public ClassActionImpl(
+		Set<String> includes, Set<String> excludes,
+		Map<String, String> renames, Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
+
 		super(includes, excludes, renames, versions, bundleUpdates);
 	}
 
@@ -193,7 +195,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		}
 
 		if ( getIsVerbose() ) {
-			verbose("Class [ %s ] as [ %s ]\n", inputName, inputClass.this_class);
+			verbose("\nClass [ %s ] as [ %s ]\n", inputName, inputClass.this_class);
 			verbose("  Super [ %s ]\n", inputClass.super_class);
 			if ( inputClass.interfaces != null ) {
 				verbose("  Interfaces [ %s ]\n", inputClass.interfaces.length);
@@ -235,7 +237,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		setClassNames(inputClassName, outputClassName);
 		setResourceNames(inputName, outputName);
 
-		verbose("%s\n", classBuilder);
+		verbose("\n%s\n", classBuilder);
 
 		String inputSuperName = classBuilder.super_class(); 
 		if ( inputSuperName != null ) {
@@ -249,7 +251,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 			setSuperClassNames(inputSuperName, outputSuperName);
 
 			if ( !outputSuperName.equals("java/lang/Object") ) {
-				verbose(" extends %s\n", outputSuperName);
+				verbose("  extends %s\n", outputSuperName);
 			}
 		}
 
@@ -264,33 +266,37 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 				}
 			}
 
-			verbose(" implements %s\n", interfaces);
+			verbose("  implements %s\n", interfaces);
 		}
-
-		verbose("\n");
 
 		// Transform members ...
 
 		ListIterator<FieldInfo> fields = classBuilder.fields().listIterator();
+		if ( fields.hasNext() ) {
+			verbose("  Fields:\n");
+		}
 		while ( fields.hasNext() ) {
 			FieldInfo inputField = fields.next();
 			FieldInfo outputField = transform( inputField, FieldInfo::new, SignatureType.FIELD );
 			if ( outputField != null ) {
 				fields.set(outputField);
 				addModifiedField();
-				verbose( "    %s -> %s\n", inputField, outputField);
+				verbose( "       %s\n    -> %s\n", inputField, outputField);
 
 			}
 		}
 
 		ListIterator<MethodInfo> methods = classBuilder.methods().listIterator();
+		if ( methods.hasNext() ) {
+			verbose("  Methods:\n");
+		}
 		while ( methods.hasNext() ) {
 			MethodInfo inputMethod = methods.next();
 			MethodInfo outputMethod = transform( inputMethod, MethodInfo::new, SignatureType.METHOD );
 			if ( outputMethod != null ) {
 				methods.set(outputMethod);
 				addModifiedMethod();
-				verbose( "    %s -> %s\n", inputMethod, outputMethod);
+				verbose( "       %s\n    -> %s\n", inputMethod, outputMethod);
 			}
 		}
 
@@ -299,18 +305,21 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		// Transform attributes ...
 
 		ListIterator<Attribute> attributes = classBuilder.attributes().listIterator();
+		if ( attributes.hasNext() ) {
+			verbose("  Attributes:\n");
+		}
 		while ( attributes.hasNext() ) {
 			Attribute inputAttribute = attributes.next();
 			Attribute outputAttribute = transform(inputAttribute, SignatureType.CLASS);
 			if ( outputAttribute != null ) {
 				attributes.set(outputAttribute);
 				addModifiedAttribute();
-				verbose( "    %s -> %s\n", inputAttribute, outputAttribute);
+				verbose( "       %s\n    -> %s\n", inputAttribute, outputAttribute);
 			}
 		}
 
 		MutableConstantPool constants = classBuilder.constant_pool();
-		verbose("    Constant Pool size: %s\n", constants.size()); 
+		verbose("  Constant pool: %s\n", constants.size()); 
 
 		int modifiedConstants = transform(constants);
 		if ( modifiedConstants > 0 ) {
@@ -318,7 +327,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		}
 
 		if ( !hasChanges() ) {
-			log("    Class size: %s %s\n", inputName, inputLength);
+			log("  Class bytes: %s %s\n", inputName, inputLength);
 			return null;
 		}
 
@@ -332,7 +341,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		}
 
 		byte[] outputBytes = outputClassData.toByteArray();
-		log("    Class size: %s: %s -> %s\n", inputName, inputBytes.length, outputBytes.length);
+		log("  Class size: %s: %s -> %s\n", inputName, inputBytes.length, outputBytes.length);
 		return new ByteData(outputName, outputBytes, 0, outputBytes.length);
 	}
 
@@ -346,7 +355,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		String inputDescriptor = member.descriptor;
 		String outputDescriptor = transformDescriptor(inputDescriptor);
 		if ( outputDescriptor != null ) {
-			verbose("  %s %s -> %s\n", member.name, member.descriptor, outputDescriptor);
+			verbose("    %s\n       %s\n    -> %s\n", member.name, member.descriptor, outputDescriptor);
 		}
 
 		Attribute[] inputAttributes = member.attributes;
@@ -374,7 +383,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 				}
 				outputAttributes[attributeNo] = outputAttribute;
 
-				verbose("    %s -> %s\n", inputAttribute, outputAttribute);
+				verbose("       %s\n    -> %s\n", inputAttribute, outputAttribute);
 			}
 		}
 
@@ -403,7 +412,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 					}
 				}
 
-				return ( (outputExceptions == null) ? null : new ExceptionsAttribute(inputExceptions) );
+				return ( (outputExceptions == null) ? null : new ExceptionsAttribute(outputExceptions) );
 			}
 
 			case CodeAttribute.NAME: {
@@ -917,6 +926,9 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 
 		int numConstants = constants.size();
 		for ( int constantNo = 1; constantNo < numConstants; constantNo++ ) {
+			verbose("Constant [ %3s ] [ %16s ] [ %s ]\n",
+				constantNo, constants.tag(constantNo), constants.entry(constantNo));
+
 			switch ( constants.tag(constantNo) ) {
 				case ConstantPool.CONSTANT_Class: {
 					ClassInfo info = constants.entry(constantNo);
@@ -925,7 +937,9 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 					if ( outputClassName != null ) {
 						constants.entry( constantNo, new ClassInfo(constants.utf8Info(outputClassName)) );
 						modifiedConstants++;
-						verbose("    Class: %s -> %s\n", inputClassName, outputClassName);
+						verbose("    Class: %s\n        -> %s\n", inputClassName, outputClassName);
+					} else {
+						verbose("Skip %s (unchanged)\n", inputClassName);
 					}
 					break;
 				}
@@ -938,7 +952,9 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 						constants.entry(constantNo,
 							new NameAndTypeInfo( info.name_index, constants.utf8Info(outputDescriptor)) );
 						modifiedConstants++;
-						verbose("    NameAndType: %s -> %s\n", inputDescriptor, outputDescriptor);
+						verbose("    NameAndType: %s\n              -> %s\n", inputDescriptor, outputDescriptor);
+					} else {
+						verbose("Skip %s (unchanged)\n", inputDescriptor);
 					}
 					break;
 				}
@@ -950,7 +966,9 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 					if ( outputDescriptor != null ) {
 						constants.entry( constantNo, new MethodTypeInfo(constants.utf8Info(outputDescriptor)) );
 						modifiedConstants++;
-						verbose("    MethodType: %s -> %s\n", inputDescriptor, outputDescriptor);
+						verbose("    MethodType: %s\n             -> %s\n", inputDescriptor, outputDescriptor);
+					} else {
+						verbose("Skip %s (unchanged)\n", inputDescriptor);
 					}
 					break;
 				}
@@ -961,7 +979,9 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 					StringInfo info = constants.entry(constantNo);
 					String utf8 = constants.utf8(info.string_index);
 					if ( utf8.contains("javax") ) {
-						verbose("    #%s = String #%s [uses-javax] // %s\n", constantNo, info.string_index, utf8);
+						verbose("    # String %s %s %s [uses-javax]\n", constantNo, info.string_index, utf8);
+					} else {
+						verbose("Skip %s (unchanged)\n", utf8);
 					}
 					break;
 				}
@@ -977,10 +997,12 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 				case ConstantPool.CONSTANT_Utf8:
 				case ConstantPool.CONSTANT_Integer:
 				case ConstantPool.CONSTANT_Float:
+					verbose("Skip (ignored)\n");
 					break;
 
 				case ConstantPool.CONSTANT_Long:
 				case ConstantPool.CONSTANT_Double:
+					verbose("Skip +1 (ignored)\n");
 					// For some insane optimization reason, the Long(5) and Double(6)
 					// entries take two slots in the constant pool.  See 4.4.5
 					constantNo++;
