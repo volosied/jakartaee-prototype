@@ -217,7 +217,7 @@ public class TestTransformClass {
 		// 'getStandardRenames' throws IOException
 	}
 
-	// @Test
+	@Test
 	public void testAnnotatedServlet() throws JakartaTransformException, IOException {
 		ClassAction classAction = createStandardClassAction(); // throws IOException
 
@@ -227,7 +227,7 @@ public class TestTransformClass {
 		InputStreamData outputStreamData = classAction.apply(resourceName, inputStream); // throws JakartaTransformException
 		display( classAction.getChanges() );
 
-		OutputStream outputStream = new FileOutputStream(ANNOTATED_SERVLET_RESOURCE_NAME); // throws FileNotFoundException
+		OutputStream outputStream = new FileOutputStream("build" + '/' + ANNOTATED_SERVLET_RESOURCE_NAME); // throws FileNotFoundException
 		try {
 			FileUtils.transfer(outputStreamData.stream, outputStream); // throws IOException
 		} finally {

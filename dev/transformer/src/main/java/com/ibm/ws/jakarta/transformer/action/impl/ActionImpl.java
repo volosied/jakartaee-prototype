@@ -62,7 +62,6 @@ public abstract class ActionImpl implements Action {
 
 		this.packageRenames = null;
 		this.binaryPackageRenames = null;
-		this.constantPackageRenames = null;
 
 		this.packageVersions = null;
 		this.bundleUpdates = null;
@@ -146,7 +145,6 @@ public abstract class ActionImpl implements Action {
 
 		Map<String, String> useRenames = new HashMap<String, String>( renames.size() );
 		Map<String, String> useBinaryRenames = new HashMap<String, String>( renames.size() );
-		Map<String, String> useConstantRenames = new HashMap<String, String>( renames.size() );
 
 		for ( Map.Entry<String, String> renameEntry : renames.entrySet() ) {
 			// System.out.println("Binary conversion from [ " + renameEntry.getKey() + " ] to [ " + renameEntry.getValue() + " ]");
@@ -159,16 +157,10 @@ public abstract class ActionImpl implements Action {
 			String finalBinaryName = finalName.replace('.',  '/');
 
 			useBinaryRenames.put(initialBinaryName, finalBinaryName);
-
-			String initialConstantName = "L" + initialName;
-			String finalConstantName = "L" + finalName;
-
-			useConstantRenames.put(initialConstantName, finalConstantName);
 		}
 
 		this.packageRenames = useRenames;
 		this.binaryPackageRenames = useBinaryRenames;
-		this.constantPackageRenames = useConstantRenames;
 
 		Map<String, String> useVersions;
 		if (versions != null ) {
@@ -408,11 +400,9 @@ public abstract class ActionImpl implements Action {
 	// Package rename: "javax.servlet.Servlet"
 	// Direct form  :  "javax.servlet"
 	// Binary form:    "javax/servlet"
-	// Constant form:  "Ljavax/servlet"
 
 	protected final Map<String, String> packageRenames;
 	protected final Map<String, String> binaryPackageRenames;
-	protected final Map<String, String> constantPackageRenames;
 
 	protected Map<String, String> getPackageRenames() {
 		return packageRenames;
@@ -952,6 +942,15 @@ public abstract class ActionImpl implements Action {
 	}
 
 	//
+
+	protected String transformConstant(String inputConstant) {
+		try {
+			return transformDescriptor(inputConstant);
+		} catch ( Throwable th ) {
+			verbose("Failed to parse constant as descriptor [ %s ]: %s", inputConstant, th.getMessage());
+			return null;
+		}
+	}
 
 	private final Set<String> unchangedDescriptors;
 	private final Map<String, String> changedDescriptors;

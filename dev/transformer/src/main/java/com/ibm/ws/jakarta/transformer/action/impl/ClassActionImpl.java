@@ -939,7 +939,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 						modifiedConstants++;
 						verbose("    Class: %s\n        -> %s\n", inputClassName, outputClassName);
 					} else {
-						verbose("Skip %s (unchanged)\n", inputClassName);
+						verbose("Skip class %s (unchanged)\n", inputClassName);
 					}
 					break;
 				}
@@ -954,7 +954,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 						modifiedConstants++;
 						verbose("    NameAndType: %s\n              -> %s\n", inputDescriptor, outputDescriptor);
 					} else {
-						verbose("Skip %s (unchanged)\n", inputDescriptor);
+						verbose("Skip name-and-type %s (unchanged)\n", inputDescriptor);
 					}
 					break;
 				}
@@ -968,20 +968,41 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 						modifiedConstants++;
 						verbose("    MethodType: %s\n             -> %s\n", inputDescriptor, outputDescriptor);
 					} else {
-						verbose("Skip %s (unchanged)\n", inputDescriptor);
+						verbose("Skip method-type %s (unchanged)\n", inputDescriptor);
 					}
 					break;
 				}
 
-				case ConstantPool.CONSTANT_String: {
-					// TODO maybe rewrite String constants for renamed packages?
+				case ConstantPool.CONSTANT_Utf8:
+					String inputUtf8 = constants.entry(constantNo);
 
-					StringInfo info = constants.entry(constantNo);
-					String utf8 = constants.utf8(info.string_index);
-					if ( utf8.contains("javax") ) {
-						verbose("    # String %s %s %s [uses-javax]\n", constantNo, info.string_index, utf8);
+					String transformCase = "constant";
+					String outputUtf8 = transformConstant(inputUtf8);
+					if ( outputUtf8 == null ) {
+						transformCase = "resource";
+						outputUtf8 = this.transformBinaryType(inputUtf8);
+					}
+
+					if ( outputUtf8 != null ) {
+						constants.entry(constantNo, outputUtf8);
+						modifiedConstants++;
+						verbose("    UTF8: %s\n       -> %s (%s)\n", inputUtf8, outputUtf8, transformCase);
 					} else {
-						verbose("Skip %s (unchanged)\n", utf8);
+						verbose("Skip UTF8 %s (unchanged)\n", inputUtf8);
+					}
+
+					break;
+
+				case ConstantPool.CONSTANT_String: {
+					StringInfo stringInfo = constants.entry(constantNo);
+					String inputString = constants.utf8(stringInfo.string_index);
+					String outputString = transformConstant(inputString);
+					if ( outputString != null ) {
+						constants.entry(constantNo, new StringInfo( constants.utf8Info(outputString) ) );
+						modifiedConstants++;
+						verbose("    String: %s\n         -> %s\n", inputString, outputString);
+					} else {
+						verbose("Skip string %s (unchanged)\n", inputString);
 					}
 					break;
 				}
@@ -994,15 +1015,14 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 				case ConstantPool.CONSTANT_InvokeDynamic:
 				case ConstantPool.CONSTANT_Module:
 				case ConstantPool.CONSTANT_Package:
-				case ConstantPool.CONSTANT_Utf8:
 				case ConstantPool.CONSTANT_Integer:
 				case ConstantPool.CONSTANT_Float:
-					verbose("Skip (ignored)\n");
+					verbose("Skip other (ignored)\n");
 					break;
 
 				case ConstantPool.CONSTANT_Long:
 				case ConstantPool.CONSTANT_Double:
-					verbose("Skip +1 (ignored)\n");
+					verbose("Skip floating point value +1 (ignored)\n");
 					// For some insane optimization reason, the Long(5) and Double(6)
 					// entries take two slots in the constant pool.  See 4.4.5
 					constantNo++;
