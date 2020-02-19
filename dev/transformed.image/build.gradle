@@ -10,6 +10,7 @@ ext {
 
 configurations {
     jakarta
+    transformerTool
 }
 
 dependencies {
@@ -109,7 +110,7 @@ task copyTestApp(type: Copy){
 }
 
 task transformJars() {
-    dependsOn ':transformer:build'
+    // dependsOn ':transformer:build' 
     dependsOn deleteJavaxJars
     dependsOn copyManifests
     bundlesToBeChanged.each { file ->
@@ -126,19 +127,21 @@ task transformJars() {
                           "-ts",
                            "$project.projectDir/rules/jakarta-selections.properties",
                           "-tv",
-                          "$project.projectDir/rules/jakarta-versions.properties"] 
+                          "$project.projectDir/rules/jakarta-versions.properties",
+                           "-tb",
+                          "$project.projectDir/rules/jakarta-bundles.properties"] 
             }
         }
 
     }
     doLast {
-        println "Transformation Complete!: $project.projectDir"
+        println "\n\nTransformation Complete!"
     }
 }
 
 task transformImage() {
-    dependsOn 'transformJars'
-    copyImage 'copyImage'
+    dependsOn transformJars
+    dependsOn copyImage
 }
 
 task serverStart(type:Exec){

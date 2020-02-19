@@ -1,18 +1,20 @@
+apply plugin: 'java-library'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+apply plugin: 'maven'
+
+    repositories {
+        mavenCentral()
+    }
+
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
-
-  apply plugin: 'java-library'
-  apply plugin: 'eclipse'
-  apply plugin: 'application'
-  apply plugin: 'maven'
 
 configurations {
   archive.extendsFrom(implementation)
   archive.extendsFrom(runtimeOnly)
   archive.extendsFrom(testImplementation)
 }
-
-
 
 dependencies {
   compile 'biz.aQute.bnd:biz.aQute.bndlib:4.3.1'
@@ -54,8 +56,10 @@ task testJar(type: Jar) {
 }
 
 task showArchives {
-  configurations.archive.each {
-    println it
+  doLast {
+    configurations.archive.each {
+      println it
+    }
   }
 }
 
@@ -78,3 +82,5 @@ task copyLibs(type: Copy) {
       println "Copied to build/libs"
     }
 }
+
+build.finalizedBy(copyLibs)
