@@ -976,11 +976,19 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 				case ConstantPool.CONSTANT_Utf8:
 					String inputUtf8 = constants.entry(constantNo);
 
-					String transformCase = "constant";
-					String outputUtf8 = transformConstant(inputUtf8);
-					if ( outputUtf8 == null ) {
-						transformCase = "resource";
-						outputUtf8 = this.transformBinaryType(inputUtf8);
+					String transformCase;
+					String outputUtf8;
+
+					if ( (inputUtf8 == null) || inputUtf8.isEmpty()  ) {
+						transformCase = null; // Unused
+						outputUtf8 = null;
+					} else {
+						transformCase = "constant";
+						outputUtf8 = transformConstantAsDescriptor(inputUtf8);
+						if ( outputUtf8 == null ) {
+							transformCase = "resource";
+							outputUtf8 = transformConstantAsBinaryType(inputUtf8);
+						}
 					}
 
 					if ( outputUtf8 != null ) {
@@ -996,7 +1004,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 				case ConstantPool.CONSTANT_String: {
 					StringInfo stringInfo = constants.entry(constantNo);
 					String inputString = constants.utf8(stringInfo.string_index);
-					String outputString = transformConstant(inputString);
+					String outputString = transformConstantAsDescriptor(inputString);
 					if ( outputString != null ) {
 						constants.entry(constantNo, new StringInfo( constants.utf8Info(outputString) ) );
 						modifiedConstants++;
