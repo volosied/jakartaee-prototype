@@ -8,8 +8,8 @@ public class ManifestChangesImpl extends ChangesImpl implements ManifestChanges 
 	}
 
 	@Override
-	public boolean hasChanges() {
-		return ( super.hasChanges() || (getReplacements() > 0) );
+	public boolean hasNonResourceNameChanges() {
+		return ( getReplacements() > 0 );
 	}
 
 	@Override

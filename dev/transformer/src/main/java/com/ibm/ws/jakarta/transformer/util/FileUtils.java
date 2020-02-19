@@ -1,5 +1,6 @@
 package com.ibm.ws.jakarta.transformer.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -171,5 +172,15 @@ public class FileUtils {
         }
 
         return totalBytesRead;
+	}
+
+	//
+
+	public static String normalize(String path) {
+		if ( File.separatorChar == '\\' ) {
+			return path.replace(File.separatorChar, '/');
+		} else {
+			return path;
+		}
 	}
 }

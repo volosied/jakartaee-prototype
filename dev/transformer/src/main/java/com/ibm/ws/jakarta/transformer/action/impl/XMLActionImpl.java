@@ -19,6 +19,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
+import com.ibm.ws.jakarta.transformer.action.ActionType;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.XMLAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
@@ -49,6 +50,11 @@ public class XMLActionImpl extends ActionImpl implements XMLAction {
 
 	public String getName() {
 		return "XML Action";
+	}
+
+	@Override
+	public ActionType getActionType() {
+		return ActionType.XML;
 	}
 
 	//
@@ -87,7 +93,7 @@ public class XMLActionImpl extends ActionImpl implements XMLAction {
 
 		transform(inputName, inputStream, outputStream);
 
-		if ( !hasChanges() ) {
+		if ( !hasNonResourceNameChanges() ) {
 			return null;
 
 		} else {

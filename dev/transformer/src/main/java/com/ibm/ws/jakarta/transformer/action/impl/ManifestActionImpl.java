@@ -12,6 +12,7 @@ import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
+import com.ibm.ws.jakarta.transformer.action.ActionType;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ManifestAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
@@ -77,6 +78,11 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 
 	public String getName() {
 		return ( getIsManifest() ? "Manifest Action" : "Feature Action" );
+	}
+
+	@Override
+	public ActionType getActionType() {
+		return ( getIsManifest() ? ActionType.MANIFEST : ActionType.FEATURE );
 	}
 
 	//
@@ -166,7 +172,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 			getClass().getSimpleName(), "transform",
 			initialName, getChanges().getReplacements());
 
-		if ( !hasChanges() ) {
+		if ( !hasNonResourceNameChanges() ) {
 			verbose("[ %s.%s ]: [ %s ] Null transform", className, methodName, initialName);
 			return null;
 		}
@@ -409,17 +415,17 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 				String value = renameEntry.getValue();
 				int valueLen = value.length();
 
-				String head = text.substring(0, matchStart);				
+				String head = text.substring(0, matchStart);
 				String tail = text.substring(matchStart + keyLen);
-				
+
                 int tailLenBeforeReplaceVersion = tail.length();			
-				tail = replacePackageVersion(tail, getPackageVersions().get(value));				
+				tail = replacePackageVersion(tail, getPackageVersions().get(value));
 				int tailLenAfterReplaceVersion = tail.length();
 
 				text = head + value + tail;
-				
+
 				lastMatchEnd = matchStart + valueLen;
-				
+
 				// Replacing the key or the version can increase or decrease the text length.
 				textLimit += (valueLen - keyLen);
 				textLimit += (tailLenAfterReplaceVersion - tailLenBeforeReplaceVersion);

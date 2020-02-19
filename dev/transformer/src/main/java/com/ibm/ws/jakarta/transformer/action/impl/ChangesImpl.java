@@ -9,7 +9,7 @@ public abstract class ChangesImpl implements Changes {
 
 	@Override
 	public boolean hasChanges() {
-		return ( !inputResourceName.equals(outputResourceName) );
+		return hasResourceNameChange() || hasNonResourceNameChanges();
 	}
 
 	@Override
@@ -41,5 +41,17 @@ public abstract class ChangesImpl implements Changes {
 	@Override
 	public void setOutputResourceName(String outputResourceName) {
 		this.outputResourceName = outputResourceName;
+	}
+
+	@Override
+	public boolean hasResourceNameChange() {
+		return ( !inputResourceName.equals(outputResourceName) );
+	}
+
+	//
+
+	@Override
+	public boolean hasNonResourceNameChanges() {
+		return false;
 	}
 }

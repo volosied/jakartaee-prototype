@@ -274,7 +274,17 @@ public abstract class ActionImpl implements Action {
 	public boolean hasChanges() {
 		return getChanges().hasChanges();
 	}
+
+	@Override
+	public boolean hasResourceNameChange() {
+		return getChanges().hasResourceNameChange();
+	}
 	
+	@Override
+	public boolean hasNonResourceNameChanges() {
+		return getChanges().hasNonResourceNameChanges();
+	}	
+
 	protected void clearChanges() {
 		getChanges().clearChanges();
 	}

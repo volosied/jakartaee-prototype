@@ -27,8 +27,8 @@ public class ArchiveChangesImpl extends ChangesImpl implements ArchiveChanges {
 	//
 
 	@Override
-	public boolean hasChanges() {
-		return ( super.hasChanges() || (allChanged > 0) );
+	public boolean hasNonResourceNameChanges() {
+		return ( allChanged > 0 );
 	}
 
 	@Override

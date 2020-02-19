@@ -13,12 +13,8 @@ public class ServiceConfigChangesImpl extends ChangesImpl implements ServiceConf
 	//
 
 	@Override
-	public boolean hasChanges() {
-		if ( super.hasChanges() ) {
-			return true;
-		} else {
-			return ( changedProviders > 0 );
-		}
+	public boolean hasNonResourceNameChanges() {
+		return ( changedProviders > 0 );
 	}
 
 	@Override

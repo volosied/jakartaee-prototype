@@ -13,6 +13,7 @@ import java.util.zip.ZipOutputStream;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.Action;
+import com.ibm.ws.jakarta.transformer.action.ActionType;
 import com.ibm.ws.jakarta.transformer.action.ArchiveChanges;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ClassAction;
@@ -48,6 +49,11 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 
 	public String getName() {
 		return "Jar Action";
+	}
+
+	@Override
+	public ActionType getActionType() {
+		return ActionType.JAR;
 	}
 
 	//
@@ -206,7 +212,7 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 
 					// TODO: Should more of the entry details be transferred?
 
-					ZipEntry outputEntry = new ZipEntry(inputName);
+					ZipEntry outputEntry = new ZipEntry( selectedAction.getChanges().getOutputResourceName() );
 					zipOutputStream.putNextEntry(outputEntry); // throws IOException
 					FileUtils.transfer(outputData.stream, zipOutputStream, buffer); // throws IOException 
 					zipOutputStream.closeEntry(); // throws IOException					
