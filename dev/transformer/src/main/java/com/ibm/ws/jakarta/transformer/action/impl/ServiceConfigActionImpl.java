@@ -177,7 +177,7 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 				outputPackageName = null;
 
 			} else {
-				dotLocation = inputLine.lastIndexOf('.');
+				dotLocation = inputPackageName.lastIndexOf('.');
 				if ( dotLocation == -1 ) {
 					// A class which uses the default package: There is no package
 					// to rename.
