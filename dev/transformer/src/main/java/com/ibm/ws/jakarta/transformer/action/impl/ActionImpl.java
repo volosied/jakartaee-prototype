@@ -405,13 +405,21 @@ public abstract class ActionImpl implements Action {
 	protected final Map<String, String> binaryPackageRenames;
 
 	protected Map<String, String> getPackageRenames() {
-		return packageRenames;
+		if ( root != null ) {
+			return root.getPackageRenames();
+		} else {
+			return packageRenames;
+		}
 	}
 
 	protected final Map<String, String> packageVersions;
 	
 	protected Map<String, String> getPackageVersions() {
-		return packageVersions;
+		if ( root != null ) {
+			return root.getPackageVersions();
+		} else {
+			return packageVersions;
+		}
 	}
 
 	/**
@@ -515,6 +523,15 @@ public abstract class ActionImpl implements Action {
 
 	private final Map<String, String> changedBinaryTypes;
 	private final Set<String> unchangedBinaryTypes;
+
+	protected String transformConstantAsBinaryType(String inputConstant) {
+		try {
+			return transformBinaryType(inputConstant);
+		} catch ( Throwable th ) {
+			verbose("Failed to parse constant as resource reference [ %s ]: %s", inputConstant, th.getMessage());
+			return null;
+		}
+	}
 
 	/**
 	 * Modify a fully qualified type name according to the package rename table.
@@ -943,7 +960,7 @@ public abstract class ActionImpl implements Action {
 
 	//
 
-	protected String transformConstant(String inputConstant) {
+	protected String transformConstantAsDescriptor(String inputConstant) {
 		try {
 			return transformDescriptor(inputConstant);
 		} catch ( Throwable th ) {
