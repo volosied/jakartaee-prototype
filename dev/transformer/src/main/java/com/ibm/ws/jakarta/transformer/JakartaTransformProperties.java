@@ -43,9 +43,27 @@ public class JakartaTransformProperties {
 		Set<String> selectionsAny ) {
 
 		for ( String selection : selections ) {
+			selection = selection.trim();
+
 			int selectionLength = selection.length();
+			if ( selectionLength == 0 ) {
+				continue;
+			}
 
 			boolean matchHead = ( selection.charAt(0) == RESOURCE_WILDCARD );
+
+			// A single '*' matches everything.  Matching everything is encoded
+			// as an empty selections collections.
+
+			if ( selectionLength == 1 ) {
+				selections.clear();
+				selectionsExact.clear();
+				selectionsHead.clear();
+				selectionsTail.clear();
+				selectionsAny.clear();
+				return;
+			}
+
 			boolean matchTail = ( selection.charAt(selectionLength - 1) == RESOURCE_WILDCARD );
 
 			if ( matchHead ) {
