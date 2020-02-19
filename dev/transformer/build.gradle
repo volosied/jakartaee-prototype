@@ -1,11 +1,18 @@
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
 
+  apply plugin: 'java-library'
+  apply plugin: 'eclipse'
+  apply plugin: 'application'
+  apply plugin: 'maven'
+
 configurations {
   archive.extendsFrom(implementation)
   archive.extendsFrom(runtimeOnly)
   archive.extendsFrom(testImplementation)
 }
+
+
 
 dependencies {
   compile 'biz.aQute.bnd:biz.aQute.bndlib:4.3.1'
@@ -44,10 +51,6 @@ tasks.named('test') {
 task testJar(type: Jar) {
     archiveBaseName = "test"
     from sourceSets.test.output
-}
-
-tasks.named('wrapper') {
-  jarFile = rootProject.file('.gradle-wrapper/gradle-wrapper.jar')
 }
 
 task showArchives {

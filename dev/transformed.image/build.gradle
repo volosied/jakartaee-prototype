@@ -108,7 +108,8 @@ task copyTestApp(type: Copy){
     into "$transformImage/wlp/lib/usr/servers/defaultServer/dropins"
 }
 
-task transformImage() {
+task transformJars() {
+    dependsOn ':transformer:build'
     dependsOn deleteJavaxJars
     dependsOn copyManifests
     bundlesToBeChanged.each { file ->
@@ -133,6 +134,11 @@ task transformImage() {
     doLast {
         println "Transformation Complete!: $project.projectDir"
     }
+}
+
+task transformImage() {
+    dependsOn 'transformJars'
+    copyImage 'copyImage'
 }
 
 task serverStart(type:Exec){
