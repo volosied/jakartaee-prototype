@@ -6,5 +6,7 @@ public enum ActionType {
 	SERVICE_CONFIG,
 	XML,
 
-	ZIP, JAR, WAR, RAR, EAR;
+	ZIP, JAR, WAR, RAR, EAR,
+	JAVA,
+	DIRECTORY;
 }

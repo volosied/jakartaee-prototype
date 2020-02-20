@@ -27,6 +27,7 @@ import com.ibm.ws.jakarta.transformer.action.ActionType;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ClassAction;
 import com.ibm.ws.jakarta.transformer.action.ClassChanges;
+import com.ibm.ws.jakarta.transformer.action.DirectoryChanges;
 import com.ibm.ws.jakarta.transformer.action.JarChanges;
 import com.ibm.ws.jakarta.transformer.action.ManifestAction;
 import com.ibm.ws.jakarta.transformer.action.ManifestChanges;
@@ -34,6 +35,7 @@ import com.ibm.ws.jakarta.transformer.action.ServiceConfigAction;
 import com.ibm.ws.jakarta.transformer.action.ServiceConfigChanges;
 import com.ibm.ws.jakarta.transformer.action.impl.ClassActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.InputBufferImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.DirectoryActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.JarActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.LoggerImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ManifestActionImpl;
@@ -336,17 +338,37 @@ public class JakartaTransformer {
 
     protected void setParsedArgs() throws ParseException {
         CommandLineParser parser = new DefaultParser();
-        this.parsedArgs = parser.parse( getAppOptions(), getArgs() );
+        this.parsedArgs = parser.parse( getAppOptions(), getArgs());
     }
 
     protected CommandLine getParsedArgs() {
         return parsedArgs;
     }
     
+    protected String getInputFileName() {
+    	String[] args = parsedArgs.getArgs();
+    	if ( args != null ) {
+        	if (args.length > 0) {
+        		return FileUtils.normalize(args[0]);
+        	} 
+    	}
+    	return null;
+    }
+    
+    protected String getOutputFileName() {
+    	String[] args = parsedArgs.getArgs();
+    	if ( args != null ) {
+        	if (args.length > 1) {
+        		return FileUtils.normalize(args[1]);
+        	} 
+    	}
+    	return null;
+    }
+    
     protected boolean hasOption(AppOption option) {
         return getParsedArgs().hasOption( option.getShortTag() );
     }
-
+    
     protected String getOptionValue(AppOption option) {
         CommandLine useParsedArgs = getParsedArgs();
         String useShortTag = option.getShortTag();
@@ -600,78 +622,70 @@ public class JakartaTransformer {
     		return signatureRules;
     	}
 
-    	protected void setInput(String inputName, ActionType transformType) {
-    		this.inputName = FileUtils.normalize(inputName);
-    		this.actionType = transformType;
-            info("Input %s [ %s ]\n", this.actionType, this.inputName);
-    	}
+//    	protected void setInput(String inputName, ActionType transformType) {
+//    		//this.inputName = FileUtils.normalize(inputName);
+//    		this.actionType = transformType;
+//            info("Input %s [ %s ]\n", this.actionType, this.inputName);
+//    	}
 
         protected boolean setInput() {
-            String className = getOptionValue(AppOption.CLASS);
-            if ( className != null ) {
-                setInput(className, ActionType.CLASS);
-                return true;
-            }
+        	
+        	inputName = getInputFileName();
+        	String lowerInputName = inputName.toLowerCase();
+        	
+//        	File test = new File(inputName);
+//        	System.out.println("File name is: [" + test.getName() + "]");
+//        	System.out.println("File path is: [" + test.getAbsolutePath() + "]");
+//        	System.out.println("File exists?: [" + test.exists() + "]");
+//        	System.out.println("File is dir: [" + test.isDirectory() + "]");
+        	
+        	if ((new File(inputName)).isDirectory()) {
+        		this.actionType = ActionType.DIRECTORY;
+        		
+        	} else if (lowerInputName.endsWith(".class")) {
+        		this.actionType = ActionType.CLASS;
+        		
+        	} else if (lowerInputName.endsWith(".mf")) {
+        		
+        		// TODO - detect MANIFEST vs FEATURE MANIFEST
+        		//    read file and check line lengths > 72
+        		//   OR have a -type option to specify the file type
+        		this.actionType = ActionType.FEATURE;
+        		this.actionType = ActionType.MANIFEST;
+        		
+        	} else if (lowerInputName.endsWith(".??????")) {
+        		this.actionType = ActionType.SERVICE_CONFIG;
+        		
+        	} else if (lowerInputName.endsWith(".xml")) {
+        		this.actionType = ActionType.XML;
+        		
+        	} else if (lowerInputName.endsWith(".zip")) {
+        		this.actionType = ActionType.ZIP;
+        		
+        	} else if (lowerInputName.endsWith(".jar")) {
+        		this.actionType = ActionType.JAR;
+        		
+        	} else if (lowerInputName.endsWith(".war")) {
+        		this.actionType = ActionType.WAR;
+        		
+        	} else if (lowerInputName.endsWith(".rar")) {
+        		this.actionType = ActionType.RAR;
+        		
+        	} else if (lowerInputName.endsWith(".ear")) {
+        		this.actionType = ActionType.EAR;
+        		
+        	} else {
+        		return false;
+        	}
+        	
+            info("Input %s [ %s ]\n", this.actionType, this.inputName);
 
-            String manifestName = getOptionValue(AppOption.MANIFEST);
-            if ( manifestName != null ) {
-                setInput(manifestName, ActionType.MANIFEST);
-                return true;
-            }
-
-            String featureManifestName = getOptionValue(AppOption.FEATURE);
-            if ( featureManifestName != null ) {
-                setInput(featureManifestName, ActionType.FEATURE);
-                return true;
-            }
-
-            String serviceConfigName = getOptionValue(AppOption.SERVICE_CONFIG);
-            if ( serviceConfigName != null ) {
-                setInput(serviceConfigName, ActionType.SERVICE_CONFIG);
-                return true;
-            }
-
-            String xmlName = getOptionValue(AppOption.XML);
-            if ( xmlName != null ) {
-                setInput(xmlName, ActionType.XML);
-                return true;
-            }
-
-            String zipName = getOptionValue(AppOption.ZIP);
-            if ( zipName != null ) {
-                setInput(zipName, ActionType.ZIP);
-                return true;
-            }
-
-            String jarName = getOptionValue(AppOption.JAR);
-            if ( jarName != null ) {
-                setInput(jarName, ActionType.JAR);
-                return true;
-            }
-
-            String warName = getOptionValue(AppOption.WAR);
-            if ( warName != null ) {
-                setInput(warName, ActionType.WAR);
-                return true;
-            }
-
-            String rarName = getOptionValue(AppOption.RAR);
-            if ( rarName != null ) {
-                setInput(rarName, ActionType.RAR);
-                return true;
-            }
-
-            String earName = getOptionValue(AppOption.EAR);
-            if ( earName != null ) {
-                setInput(earName, ActionType.EAR);
-                return true;
-            }
-
-            return false;
+            return true;
         }
 
         protected boolean setOutput() {
-            outputName = getOptionValue(AppOption.OUTPUT);
+        	
+            outputName = getOutputFileName(); //getOptionValue(AppOption.OUTPUT);
             if ( outputName != null ) {
             	info("Transformation output to [ %s ]\n", outputName);
             	return true;
@@ -693,9 +707,6 @@ public class JakartaTransformer {
             	error("Input does not exist [ " + inputFile.getAbsolutePath() + " ]\n");
             	return false;
 
-            } else if ( inputFile.isDirectory() ) {
-            	error("Input directories are not supported [ " + inputFile.getAbsolutePath() + " ]\n");
-            	return false;
             }
 
             if ( outputFile.exists() ) {
@@ -708,6 +719,11 @@ public class JakartaTransformer {
 
         protected void transform() throws JakartaTransformException {
             long inputLength = inputFile.length();
+
+            if (inputFile.isDirectory()) {
+            	transformDirectory(inputFile, outputFile);  // throws JakartaTransformException
+            	return;
+            }                   
 
             try ( InputStream inputStream = IO.stream(inputFile) ) {
                 try ( OutputStream outputStream = IO.outputStream(outputFile) ) {
@@ -820,14 +836,32 @@ public class JakartaTransformer {
         	}
         }
 
-        private static final String DASH_LINE =
-        	"================================================================================\n";
-        private static final String JAR_LINE =
-        	"[ %22s ] [ %6s ] %10s [ %6s ] %8s [ %6s ]\n";
+        protected void transformDirectory(File inputFile,
+        		                          File outputFile) throws JakartaTransformException {
+										  
+    		DirectoryActionImpl dirAction = new DirectoryActionImpl(
+                	                            getInfoStream(), 
+                	                            isTerse, 
+                	                            isVerbose,
+                	                            includes, 
+                	                            excludes,
+                	                            packageRenames, 
+                	                            packageVersions, 
+                	                            bundleUpdates);
+
+    		dirAction.apply(inputFile, outputFile);
+
+    		if ( dirAction.hasChanges() ) {
+    			DirectoryChanges dirChanges = dirAction.getChanges();
+                dirChanges.displayChanges();
+    		}
+        }
+        
+        //
 
         protected void transformJar(
-    		InputStream inputStream, long inputLength,
-    		OutputStream outputStream) throws JakartaTransformException {
+        		InputStream inputStream, long inputLength,
+        		OutputStream outputStream) throws JakartaTransformException {
 
     		JarActionImpl jarAction = new JarActionImpl(
     			getLogger(), getBuffer(), getSelectionRule(), getSignatureRule());
@@ -836,7 +870,7 @@ public class JakartaTransformer {
     		jarAction.addUsing( ManifestActionImpl::newManifestAction );
     		jarAction.addUsing( ManifestActionImpl::newFeatureAction );
 
-            jarAction.apply(inputPath, inputStream, outputPath, outputStream);
+        	jarAction.apply(inputPath, inputStream, outputPath, outputStream); 
 
             if ( jarAction.hasChanges() ) {
             	JarChanges jarChanges = jarAction.getChanges();
@@ -896,7 +930,7 @@ public class JakartaTransformer {
     				e);
     		}
     	}
-
+    	
         protected void transform(
         	InputStream inputStream, long inputLength,
         	OutputStream outputStream) throws JakartaTransformException {
@@ -950,11 +984,11 @@ public class JakartaTransformer {
 
         options.setLogging();
 
-        if ( !options.setInput() ) {
-            error("No input option was specified");
+        if ( !options.setInput() ) { 
+            error("No input file was specified");
             return TRANSFORM_ERROR_RC;
         } else if ( !options.setOutput() ) {
-            error("No output option was specified");
+            error("No output file was specified");
             return TRANSFORM_ERROR_RC;
         } else if ( !options.validateFiles() ) {
             return TRANSFORM_ERROR_RC;

@@ -28,4 +28,6 @@ public interface ContainerChanges extends Changes {
 	void record(Action action);
 	void record(Action action, boolean hasChanges);
 	void record(String name, boolean hasChanges);
+	
+	void displayChanges();
 }

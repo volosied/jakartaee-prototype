@@ -161,4 +161,56 @@ public class ContainerChangesImpl extends ChangesImpl implements ContainerChange
 		allResources++;
 		allUnselected++;
 	}
+	
+	private static final String DASH_LINE =
+			"================================================================================\n";
+	private static final String DATA_LINE =
+			"[ %22s ] [ %6s ] %10s [ %6s ] %8s [ %6s ]\n";
+
+    @Override
+	public void displayChanges() {
+
+		// ================================================================================
+		// [ Input  ] [ c:\dev\jakarta-repo-pub\jakartaee-prototype\dev\transformer\app\test.jar ]
+		// [ Output ] [ c:\dev\jakarta-repo-pub\jakartaee-prototype\dev\transformer\app\testOutput.jar ]
+		// ================================================================================  
+		// [          All Resources ] [     55 ] Unselected [      6 ] Selected [     49 ]
+		// ================================================================================  
+		// [            All Actions ] [     49 ]   Unchangd [     43 ]  Changed [      6 ]
+		// [           Class Action ] [     41 ]  Unchanged [     38 ]  Changed [      3 ]
+		// [        Manifest Action ] [      1 ]  Unchanged [      0 ]  Changed [      1 ]
+		// [  Service Config Action ] [      7 ]  Unchanged [      5 ]  Changed [      2 ]
+		// ================================================================================
+
+		info( DASH_LINE );
+		info( "[ Input  ] [ %s ]\n", this.getInputResourceName() );
+		info( "[ Output ] [ %s ]\n", this.getOutputResourceName() );
+
+		info( DASH_LINE );
+		info( DATA_LINE,
+				"All Resources", this.getAllResources(),
+				"Unselected", getAllUnselected(),
+				"Selected", getAllSelected() );
+
+		info( DASH_LINE );
+		info( DATA_LINE,
+				"All Actions", getAllSelected(),
+				"Unchanged", getAllUnchanged(),
+				"Changed", getAllChanged());
+
+		for ( String actionName : getActionNames() ) {
+			int unchangedByAction = getUnchanged(actionName); 
+			int changedByAction = getChanged(actionName);
+			info(DATA_LINE,
+					actionName, unchangedByAction + changedByAction,
+					"Unchanged", unchangedByAction,
+					"Changed", changedByAction);
+		}
+
+		info( DASH_LINE );
+	}
+
+    private void info(String text, Object... parms) {
+    	System.out.printf(text, parms);
+    }
 }
