@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
+import com.ibm.ws.jakarta.transformer.action.impl.InputBufferImpl;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
@@ -126,6 +127,15 @@ public interface Action {
 	//
 
 	/**
+	 * Answer the rules widget for signature type updates.
+	 *
+	 * @return The rules widget for signature type updates.
+	 */
+	SignatureRule getSignatureRule();
+
+	//
+
+	/**
 	 * Apply this action on an input stream.
 	 *
 	 * Answer a data structure containing output data.  The output data
@@ -240,4 +250,10 @@ public interface Action {
 	 *     changed the name of the resource.
 	 */
 	boolean hasResourceNameChange();
+
+	//
+
+	InputBufferImpl getBuffer();
+	byte[] getInputBuffer();
+	void setInputBuffer(byte[] inputBuffer);
 }

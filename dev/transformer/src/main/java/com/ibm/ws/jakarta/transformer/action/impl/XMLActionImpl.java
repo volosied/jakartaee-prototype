@@ -5,10 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.nio.charset.Charset;
-import java.util.Map;
-import java.util.Set;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
@@ -20,30 +17,19 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.ActionType;
-import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.XMLAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 
 public class XMLActionImpl extends ActionImpl implements XMLAction {
 	public static final String CLASS_NAME = XMLActionImpl.class.getSimpleName();
 
-	public XMLActionImpl(ActionImpl parent) {
-		super(parent);
-	}
-	
-	public XMLActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames,
-			Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
-		super(includes, excludes, renames, versions, bundleUpdates);
-	}
-
 	public XMLActionImpl(
-		PrintStream logStream, boolean isTerse, boolean isVerbose,
-		Set<String> includes, Set<String> excludes, Map<String, String> renames,
-		Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
+		LoggerImpl logger,
+		InputBufferImpl buffer,
+		SelectionRuleImpl selectionRule,
+		SignatureRuleImpl signatureRule) {
 
-		super(logStream, isTerse, isVerbose,
-			  includes, excludes,
-			  renames, versions, bundleUpdates);
+		super(logger, buffer, selectionRule, signatureRule);
 	}
 
 	//

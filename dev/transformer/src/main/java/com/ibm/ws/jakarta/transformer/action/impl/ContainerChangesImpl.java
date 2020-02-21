@@ -6,11 +6,11 @@ import java.util.Map;
 import java.util.Set;
 
 import com.ibm.ws.jakarta.transformer.action.Action;
-import com.ibm.ws.jakarta.transformer.action.ArchiveChanges;
+import com.ibm.ws.jakarta.transformer.action.ContainerChanges;
 
-public class ArchiveChangesImpl extends ChangesImpl implements ArchiveChanges {
+public class ContainerChangesImpl extends ChangesImpl implements ContainerChanges {
 
-	protected ArchiveChangesImpl() {
+	protected ContainerChangesImpl() {
 		super();
 
 		this.changedByAction = new HashMap<String, int[]>();

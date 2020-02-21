@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.util.Collections;
@@ -21,12 +22,16 @@ import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.JakartaTransformProperties;
 import com.ibm.ws.jakarta.transformer.JakartaTransformer;
 import com.ibm.ws.jakarta.transformer.action.Action;
+import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ClassAction;
 import com.ibm.ws.jakarta.transformer.action.ClassChanges;
-import com.ibm.ws.jakarta.transformer.action.impl.ActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ClassActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.InputBufferImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.JarActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.LoggerImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.SelectionRuleImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ServiceConfigActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.SignatureRuleImpl;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
 import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
@@ -35,6 +40,33 @@ import transformer.test.data.Sample_InjectAPI_Javax;
 import transformer.test.util.ClassData;
 
 public class TestTransformClass {
+
+	public LoggerImpl createLogger(PrintStream printStream, boolean isTerse, boolean isVerbose) {
+		return new LoggerImpl(printStream, isTerse, isVerbose);
+	}
+
+	public InputBufferImpl createBuffer() {
+		return new InputBufferImpl();
+	}
+
+	public SelectionRuleImpl createSelectionRule(
+		LoggerImpl logger,
+		Set<String> useIncludes,
+		Set<String> useExcludes) {
+
+		return new SelectionRuleImpl( logger, useIncludes, useExcludes );
+	}
+
+	public SignatureRuleImpl createSignatureRule(
+		LoggerImpl logger,
+		Map<String, String> usePackageRenames,
+		Map<String, String> usePackageVersions,
+		Map<String, BundleData> bundleData) {
+
+		return new SignatureRuleImpl( logger, usePackageRenames, usePackageVersions, bundleData );
+	}
+
+	//
 
 	@Test
 	public void testJavaxAsJavax_inject() {
@@ -109,27 +141,39 @@ public class TestTransformClass {
 
 	public JarActionImpl getJakartaJarAction() {
 		if ( jakartaJarAction == null ) {
+			LoggerImpl logger = createLogger( System.out, !LoggerImpl.IS_TERSE, LoggerImpl.IS_VERBOSE );
+
 			jakartaJarAction = new JarActionImpl(
-				getIncludes(), getExcludes(),
-				getPackageRenames(), null, null );
+				logger,
+				createBuffer(),
+				createSelectionRule( logger, getIncludes(), getExcludes() ),
+				createSignatureRule( logger, getPackageRenames(), null, null ) );
 		}
+
 		return jakartaJarAction;
 	}
 
 	public JarActionImpl getJavaxJarAction() {
 		if ( javaxJarAction == null ) {
-			Map<String, String> invertedRenames = JakartaTransformProperties.invert( getPackageRenames() );
+			LoggerImpl logger = createLogger( System.out, !LoggerImpl.IS_TERSE, LoggerImpl.IS_VERBOSE );
+
+			Map<String, String> invertedRenames =
+				JakartaTransformProperties.invert( getPackageRenames() );
+
 			javaxJarAction = new JarActionImpl(
-				getIncludes(), getExcludes(),
-				invertedRenames, null, null );
+				logger,
+				createBuffer(),
+				createSelectionRule( logger, getIncludes(), getExcludes() ),
+				createSignatureRule( logger, invertedRenames, null, null ) );
 		}
+
 		return javaxJarAction;
 	}
 
 	public ClassLoader getClassLoader_toJakarta() {
 		JarActionImpl jarAction = getJakartaJarAction();
-		ClassActionImpl classAction = new ClassActionImpl(jarAction);
-		ServiceConfigActionImpl configAction = new ServiceConfigActionImpl(jarAction);
+		ClassActionImpl classAction = jarAction.addUsing( ClassActionImpl::new );
+		ServiceConfigActionImpl configAction = jarAction.addUsing( ServiceConfigActionImpl::new );
 
 		return new TransformClassLoader(
 			getClass().getClassLoader(),
@@ -138,8 +182,8 @@ public class TestTransformClass {
 
 	public ClassLoader getClassLoader_toJavax() {
 		JarActionImpl jarAction = getJavaxJarAction();
-		ClassActionImpl classAction = new ClassActionImpl(jarAction);
-		ServiceConfigActionImpl configAction = new ServiceConfigActionImpl(jarAction);
+		ClassActionImpl classAction = jarAction.addUsing( ClassActionImpl::new );
+		ServiceConfigActionImpl configAction = jarAction.addUsing( ServiceConfigActionImpl::new );
 
 		return new TransformClassLoader(
 			getClass().getClassLoader(),
@@ -210,10 +254,14 @@ public class TestTransformClass {
 	}
 
 	public ClassAction createStandardClassAction() throws IOException {
+		LoggerImpl logger =
+			createLogger( System.out, !LoggerImpl.IS_TERSE, LoggerImpl.IS_VERBOSE );
+
 		return new ClassActionImpl(
-			System.out, !ActionImpl.IS_TERSE, ActionImpl.IS_VERBOSE,
-			Collections.emptySet(), Collections.emptySet(),
-			getStandardRenames(), null, null );
+			logger,
+			createBuffer(),
+			createSelectionRule( logger, Collections.emptySet(), Collections.emptySet() ),
+			createSignatureRule( logger, getStandardRenames(), null, null ) );
 		// 'getStandardRenames' throws IOException
 	}
 

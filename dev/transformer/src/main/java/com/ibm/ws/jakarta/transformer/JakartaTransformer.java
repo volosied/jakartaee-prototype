@@ -27,16 +27,19 @@ import com.ibm.ws.jakarta.transformer.action.ActionType;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ClassAction;
 import com.ibm.ws.jakarta.transformer.action.ClassChanges;
-import com.ibm.ws.jakarta.transformer.action.JarAction;
 import com.ibm.ws.jakarta.transformer.action.JarChanges;
 import com.ibm.ws.jakarta.transformer.action.ManifestAction;
 import com.ibm.ws.jakarta.transformer.action.ManifestChanges;
 import com.ibm.ws.jakarta.transformer.action.ServiceConfigAction;
 import com.ibm.ws.jakarta.transformer.action.ServiceConfigChanges;
 import com.ibm.ws.jakarta.transformer.action.impl.ClassActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.InputBufferImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.JarActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.LoggerImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ManifestActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.SelectionRuleImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ServiceConfigActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.SignatureRuleImpl;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
 
 import aQute.lib.io.IO;
@@ -445,6 +448,24 @@ public class JakartaTransformer {
             }
     	}
 
+    	private LoggerImpl logger;
+
+    	protected LoggerImpl getLogger() {
+    		if ( logger == null ) {
+    			logger = new LoggerImpl( getInfoStream(), isTerse, isVerbose );
+    		}
+    		return logger;
+    	}
+
+    	private InputBufferImpl buffer;
+    	
+    	protected InputBufferImpl getBuffer() {
+    		if ( buffer == null ) {
+    			buffer = new InputBufferImpl();
+    		}
+    		return buffer;
+    	}
+    	
     	protected boolean setRules() throws IOException, URISyntaxException, IllegalArgumentException {
     		UTF8Properties selectionProperties = loadProperties(AppOption.RULES_SELECTIONS, DEFAULT_SELECTIONS_REFERENCE);
     		UTF8Properties renameProperties = loadProperties(AppOption.RULES_RENAMES, DEFAULT_RENAMES_REFERENCE);
@@ -555,6 +576,28 @@ public class JakartaTransformer {
         			}
     			}
     		}
+    	}
+
+    	private SelectionRuleImpl selectionRules;
+
+    	protected SelectionRuleImpl getSelectionRule() {
+    		if ( selectionRules == null ) {
+    			selectionRules = new SelectionRuleImpl(
+    				getLogger(),
+    				includes, excludes);
+    		}
+    		return selectionRules;
+    	}
+
+    	private SignatureRuleImpl signatureRules;
+
+    	protected SignatureRuleImpl getSignatureRule() {
+    		if ( signatureRules == null ) {
+    			signatureRules =  new SignatureRuleImpl(
+        			getLogger(),
+        			packageRenames, packageVersions, bundleUpdates);
+    		}
+    		return signatureRules;
     	}
 
     	protected void setInput(String inputName, ActionType transformType) {
@@ -684,9 +727,7 @@ public class JakartaTransformer {
     		int intLength = FileUtils.verifyArray(0, inputLength);
 
     		ClassAction classAction = new ClassActionImpl(
-    			getInfoStream(), isTerse, isVerbose,
-    			includes, excludes,
-    			packageRenames, packageVersions, bundleUpdates);
+        		getLogger(), getBuffer(), getSelectionRule(), getSignatureRule() ); 
 
     		classAction.apply(inputPath, inputStream, intLength, outputStream);
 
@@ -718,9 +759,7 @@ public class JakartaTransformer {
     		int intLength = FileUtils.verifyArray(0, inputLength);
 
     		ServiceConfigAction configAction = new ServiceConfigActionImpl(
-    			getInfoStream(), isTerse, isVerbose,
-    			includes, excludes,
-    			packageRenames, packageVersions, bundleUpdates);
+            	getLogger(), getBuffer(), getSelectionRule(), getSignatureRule() ); 
 
     		configAction.apply(inputPath, inputStream, intLength, outputStream);
 
@@ -742,9 +781,8 @@ public class JakartaTransformer {
     		int intLength = FileUtils.verifyArray(0, inputLength);
 
     		ManifestAction manifestAction = new ManifestActionImpl(
-    			getInfoStream(), isTerse, isVerbose,
-    			includes, excludes, packageRenames, ManifestActionImpl.IS_MANIFEST,
-    			packageVersions, bundleUpdates);
+    			getLogger(), getBuffer(), getSelectionRule(), getSignatureRule(),
+            	ManifestActionImpl.IS_MANIFEST);
 
     		manifestAction.apply(inputPath, inputStream, intLength, outputStream);
 
@@ -766,9 +804,8 @@ public class JakartaTransformer {
         	int intLength = FileUtils.verifyArray(0, inputLength);
 
         	ManifestAction featureAction = new ManifestActionImpl(
-        		getInfoStream(), isTerse, isVerbose,
-        		includes, excludes, packageRenames, ManifestActionImpl.IS_FEATURE,
-        		packageVersions, bundleUpdates);
+        		getLogger(), getBuffer(), getSelectionRule(), getSignatureRule(),
+        		ManifestActionImpl.IS_FEATURE );
 
         	featureAction.apply(inputPath, inputStream, intLength, outputStream);
 
@@ -792,10 +829,12 @@ public class JakartaTransformer {
     		InputStream inputStream, long inputLength,
     		OutputStream outputStream) throws JakartaTransformException {
 
-    		JarAction jarAction = new JarActionImpl(
-            	getInfoStream(), isTerse, isVerbose,
-            	includes, excludes,
-            	packageRenames, packageVersions, bundleUpdates);
+    		JarActionImpl jarAction = new JarActionImpl(
+    			getLogger(), getBuffer(), getSelectionRule(), getSignatureRule());
+    		jarAction.addUsing( ClassActionImpl::new );
+    		jarAction.addUsing( ServiceConfigActionImpl::new );
+    		jarAction.addUsing( ManifestActionImpl::newManifestAction );
+    		jarAction.addUsing( ManifestActionImpl::newFeatureAction );
 
             jarAction.apply(inputPath, inputStream, outputPath, outputStream);
 

@@ -3,10 +3,6 @@ package com.ibm.ws.jakarta.transformer.action.impl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
-// import java.nio.file.attribute.FileTime;
-import java.util.Map;
-import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -14,35 +10,21 @@ import java.util.zip.ZipOutputStream;
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.Action;
 import com.ibm.ws.jakarta.transformer.action.ActionType;
-import com.ibm.ws.jakarta.transformer.action.ArchiveChanges;
-import com.ibm.ws.jakarta.transformer.action.BundleData;
-import com.ibm.ws.jakarta.transformer.action.ClassAction;
+import com.ibm.ws.jakarta.transformer.action.ContainerChanges;
 import com.ibm.ws.jakarta.transformer.action.JarAction;
-import com.ibm.ws.jakarta.transformer.action.ManifestAction;
-import com.ibm.ws.jakarta.transformer.action.ServiceConfigAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
 import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
-public class JarActionImpl extends ActionImpl implements JarAction {
-
-	public JarActionImpl(ActionImpl parentAction) {
-		super(parentAction);
-	}
-
-	public JarActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames,
-			Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
-		super(includes, excludes, renames, versions, bundleUpdates);
-	}
+public class JarActionImpl extends ContainerActionImpl implements JarAction {
 
 	public JarActionImpl(
-		PrintStream logStream, boolean isTerse, boolean isVerbose,
-		Set<String> includes, Set<String> excludes, Map<String, String> renames,
-		Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
+		LoggerImpl logger,
+		InputBufferImpl buffer,
+		SelectionRuleImpl selectionRule,
+		SignatureRuleImpl signatureRule) {
 
-		super(logStream, isTerse, isVerbose,
-			   includes, excludes,
-			   renames, versions, bundleUpdates);
+		super(logger, buffer, selectionRule, signatureRule);
 	}
 
 	//
@@ -66,28 +48,6 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 	@Override
 	public JarChangesImpl getChanges() {
 		return (JarChangesImpl) super.getChanges();
-	}
-
-	protected void recordUnaccepted(String resourceName) {
-		verbose( "Resource [ %s ]: Not accepted\n", resourceName );
-
-		getChanges().record();
-	}
-
-	protected void recordUnselected(Action action, boolean hasChanges, String resourceName) {
-		verbose(
-			"Resource [ %s ] Action [ %s ]: Accepted but not selected\n",
-			resourceName, action.getName() );
-
-		getChanges().record(action, hasChanges);
-	}
-
-	protected void recordTransform(Action action, String resourceName) {
-		verbose(
-			"Resource [ %s ] Action [ %s ]: Changes [ %s ]\n",
-			resourceName, action.getName(), action.hasChanges() );
-
-		getChanges().record(action);
 	}
 
 	//
@@ -134,11 +94,6 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 		String inputName = null;
 
 		try {
-			ClassAction classAction = new ClassActionImpl(this);
-			ServiceConfigAction configAction = new ServiceConfigActionImpl(this);
-			ManifestAction manifestAction = new ManifestActionImpl(this, ManifestActionImpl.IS_MANIFEST);
-			ManifestAction featureAction = new ManifestActionImpl(this, ManifestActionImpl.IS_FEATURE);
-
 			byte[] buffer = new byte[FileUtils.BUFFER_ADJUSTMENT];
 
 			ZipEntry inputEntry;
@@ -149,25 +104,13 @@ public class JarActionImpl extends ActionImpl implements JarAction {
 				verbose("[ %s.%s ] [ %s ] Size [ %s ]\n",
 					getClass().getSimpleName(), "applyZip", inputName, inputLength);
 
-				Action selectedAction;
-
-				if ( classAction.accept(inputName) ) {
-					selectedAction = classAction;
-				} else if ( configAction.accept(inputName) ) {
-					selectedAction = configAction;
-				} else if ( manifestAction.accept(inputName) ) {
-					selectedAction = manifestAction;
-				} else if ( featureAction.accept(inputName) ) {
-					selectedAction = featureAction;
-				} else {
-					selectedAction = null;
-				}
+				Action selectedAction = selectAction(inputName);
 
 				if ( !select(inputName) || (selectedAction == null) ) {
 					if ( selectedAction == null ) {
 						recordUnaccepted(inputName);
 					} else {
-						recordUnselected(selectedAction, !ArchiveChanges.HAS_CHANGES, inputName);
+						recordUnselected(selectedAction, !ContainerChanges.HAS_CHANGES, inputName);
 					}
 
 					// TODO: Should more of the entry details be transferred?

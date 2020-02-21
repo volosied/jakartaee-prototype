@@ -6,7 +6,7 @@ import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 
 import java.io.InputStream;
 
-public interface JarAction extends Action {
+public interface JarAction extends ContainerAction {
 	void apply(
 		String inputPath, InputStream inputStream,
 		String outputPath, OutputStream outputStream)

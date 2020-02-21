@@ -18,14 +18,43 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
-import com.ibm.ws.jakarta.transformer.JakartaTransformProperties;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
-import com.ibm.ws.jakarta.transformer.action.impl.ActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.BundleDataImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.InputBufferImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.LoggerImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ManifestActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.SelectionRuleImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.SignatureRuleImpl;
 import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
 public class TestTransformManifest {
+	public LoggerImpl createLogger(PrintStream printStream, boolean isTerse, boolean isVerbose) {
+		return new LoggerImpl(printStream, isTerse, isVerbose);
+	}
+
+	public InputBufferImpl createBuffer() {
+		return new InputBufferImpl();
+	}
+
+	public SelectionRuleImpl createSelectionRule(
+		LoggerImpl logger,
+		Set<String> useIncludes,
+		Set<String> useExcludes) {
+
+		return new SelectionRuleImpl( logger, useIncludes, useExcludes );
+	}
+
+	public SignatureRuleImpl createSignatureRule(
+		LoggerImpl logger,
+		Map<String, String> usePackageRenames,
+		Map<String, String> usePackageVersions,
+		Map<String, BundleData> bundleData) {
+
+		return new SignatureRuleImpl( logger, usePackageRenames, usePackageVersions, bundleData );
+	}
+
+	//
+
 	public static final String JAVAX_SERVLET = "javax.servlet";
 	public static final String JAVAX_SERVLET_ANNOTATION = "javax.servlet.annotation";
 	public static final String JAVAX_SERVLET_DESCRIPTOR = "javax.servlet.descriptor";
@@ -117,53 +146,38 @@ public class TestTransformManifest {
 		}
 		return bundleUpdates;
 	}
-	
+
 	public ManifestActionImpl jakartaManifestAction;
-	public ManifestActionImpl javaxManifestAction;
 
 	public ManifestActionImpl getJakartaManifestAction() {
 		if ( jakartaManifestAction == null ) {
-			jakartaManifestAction =
-				new ManifestActionImpl(
-					System.out, !ActionImpl.IS_TERSE, ActionImpl.IS_VERBOSE,
-					getIncludes(), getExcludes(),
-					getPackageRenames(), getPackageVersions(), getBundleUpdates() );
+			LoggerImpl logger = createLogger( System.out, !LoggerImpl.IS_TERSE, LoggerImpl.IS_VERBOSE );
+
+			jakartaManifestAction = new ManifestActionImpl(
+				logger,
+				new InputBufferImpl(),
+				new SelectionRuleImpl( logger, getIncludes(), getExcludes() ),
+				new SignatureRuleImpl( logger, getPackageRenames(), getPackageVersions(), getBundleUpdates() ),
+				ManifestActionImpl.IS_MANIFEST );
 		}
 		return jakartaManifestAction;
 	}
 
-	public ManifestActionImpl getJavaxManifestAction() {
-		if ( javaxManifestAction == null ) {
-			Map<String, String> invertedRenames = JakartaTransformProperties.invert( getPackageRenames() );
-			javaxManifestAction = new ManifestActionImpl( getIncludes(), getExcludes(), invertedRenames );
-		}
-		return javaxManifestAction;
-	}
-
 	public ManifestActionImpl jakartaFeatureAction;
-	public ManifestActionImpl javaxFeatureAction;
 
 	public ManifestActionImpl getJakartaFeatureAction() {
 		if ( jakartaFeatureAction == null ) {
-			jakartaFeatureAction =
-				new ManifestActionImpl(
-					System.out, !ActionImpl.IS_TERSE, ActionImpl.IS_VERBOSE,
-					getIncludes(), getExcludes(),
-					getPackageRenames(), ManifestActionImpl.IS_FEATURE,
-					getPackageVersions(), getBundleUpdates() );
-		}
-		return jakartaFeatureAction;
-	}
+			LoggerImpl logger = createLogger( System.out, !LoggerImpl.IS_TERSE, LoggerImpl.IS_VERBOSE );
 
-	public ManifestActionImpl getJavaxFeatureAction() {
-		if ( javaxFeatureAction == null ) {
-			Map<String, String> invertedRenames = JakartaTransformProperties.invert( getPackageRenames() );
-			javaxFeatureAction = new ManifestActionImpl(
-				getIncludes(), getExcludes(),
-				invertedRenames, ManifestActionImpl.IS_FEATURE,
-				getPackageVersions(), getBundleUpdates() );   // versions not inverted );
+			jakartaFeatureAction = new ManifestActionImpl(
+				logger,
+				new InputBufferImpl(),
+				new SelectionRuleImpl( logger, getIncludes(), getExcludes() ),
+				new SignatureRuleImpl( logger, getPackageRenames(), getPackageVersions(), null ),
+				ManifestActionImpl.IS_FEATURE );
 		}
-		return javaxFeatureAction;
+
+		return jakartaFeatureAction;
 	}
 
 	//
@@ -411,16 +425,16 @@ public class TestTransformManifest {
 	/**
 	 * Subclass which allows us to call protected methods of ManifestActionImpl
 	 */
-	class ManifestActionImplSubClass extends ManifestActionImpl {
-		public ManifestActionImplSubClass(
-				PrintStream logStream, boolean isTerse, boolean isVerbose,
-				Set<String> includes, Set<String> excludes, Map<String, String> renames,
-				Map<String, String> versions) {
+	class ManifestActionImpl_Test extends ManifestActionImpl {
+		public ManifestActionImpl_Test (
+			LoggerImpl logger,
+			InputBufferImpl buffer,
+			SelectionRuleImpl selectionRule,
+			SignatureRuleImpl signatureRule,
+			boolean isManifest) {
 
-				super(logStream, isTerse, isVerbose,
-				      includes, excludes,
-				      renames, versions, null);
-			}
+			super(logger, buffer, selectionRule, signatureRule, isManifest);
+		}
 
 		public boolean callIsTrueMatch(String text, int textLimit, int matchStart, int keyLen ) {
 			return isTrueMatch(text, textLimit, matchStart, keyLen );
@@ -435,16 +449,23 @@ public class TestTransformManifest {
 		}
 	}
 	
-	private ManifestActionImplSubClass getManifestActionImplSubClass() {
-		return new ManifestActionImplSubClass(System.out, 
-                                              !ActionImpl.IS_TERSE, 
-                                              ActionImpl.IS_VERBOSE,
-                                              getIncludes(), 
-                                              getExcludes(), 
-                                              getPackageRenames(),
-                                              getPackageVersions());
-	}
+	private ManifestActionImpl_Test manifestAction_test;
 	
+	protected ManifestActionImpl_Test getManifestAction() {
+		if ( manifestAction_test == null ) {
+			LoggerImpl logger = new LoggerImpl( System.out, !LoggerImpl.IS_TERSE, LoggerImpl.IS_VERBOSE);
+
+			manifestAction_test = new ManifestActionImpl_Test(
+				logger,
+				new InputBufferImpl(),
+				new SelectionRuleImpl( logger, getIncludes(), getExcludes() ), 
+				new SignatureRuleImpl( logger, getPackageRenames(), getPackageVersions(), null ),
+				ManifestActionImpl.IS_MANIFEST );
+		}
+
+		return manifestAction_test;
+	}
+
 	/**
 	 * Test the ManifestActionImpl.isTrueMatch(...) method, which verifies that
 	 * the package found is not part of a larger package name.  
@@ -455,8 +476,7 @@ public class TestTransformManifest {
 	 */
 	@Test
 	void testIsTrueMatch() {
-		
-		ManifestActionImplSubClass manifestAction = getManifestActionImplSubClass();
+		ManifestActionImpl_Test manifestAction = getManifestAction();
 		
 		boolean result;
 		
@@ -564,10 +584,10 @@ public class TestTransformManifest {
 	
 	@Test
 	void testReplacePackageVersionInEmbeddingText() {
-		
-		ManifestActionImplSubClass manifestAction = getManifestActionImplSubClass();
+		ManifestActionImpl_Test manifestAction = getManifestAction();
+
 		String result;
-		
+
 		result = manifestAction.callReplacePackageVersion(embeddingText1, newVersion);
 		assertEquals(expectedResultText1_ReplaceVersion,
 				     result,
@@ -631,16 +651,10 @@ public class TestTransformManifest {
 
 	@Test
 	void testGetPackageAttributeText() {
-		ManifestActionImplSubClass manifestAction = new ManifestActionImplSubClass(System.out, 
-                !ActionImpl.IS_TERSE, 
-                ActionImpl.IS_VERBOSE,
-                getIncludes(), 
-                getExcludes(), 
-                getPackageRenames(),
-                getPackageVersions());
+		ManifestActionImpl_Test manifestAction = getManifestAction();
 
 		String result;
-		
+
 		result = manifestAction.callGetPackageAttributeText(embeddingText1);		
 		assertEquals(expectedResultText1_GetPackageText,
 				     result, 
