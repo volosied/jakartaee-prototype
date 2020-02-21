@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
+import com.ibm.ws.jakarta.transformer.action.ActionType;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ClassAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
@@ -119,6 +120,11 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 
 	public String getName() {
 		return "Class Action";
+	}
+
+	@Override
+	public ActionType getActionType() {
+		return ActionType.CLASS;
 	}
 
 	//
@@ -326,7 +332,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 			setModifiedConstants(modifiedConstants);
 		}
 
-		if ( !hasChanges() ) {
+		if ( !hasNonResourceNameChanges() ) {
 			log("  Class bytes: %s %s\n", inputName, inputLength);
 			return null;
 		}

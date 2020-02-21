@@ -94,16 +94,14 @@ public interface Action {
 	 */
 	String getName();
 
-	/**
-	 * Tell if a resource is to be transformed.
-	 *
-	 * @param resourceName The name of the resource.
-	 *
-	 * @return True or false telling if the resource is to be transformed.
-	 */
-	boolean select(String resourceName);
-
 	//
+
+	/**
+	 * Answer the type of this action.
+	 *
+	 * @return The type of this action.
+	 */
+	ActionType getActionType();
 
 	/**
 	 * Tell if a resource is of a type which is handled by this action.
@@ -113,6 +111,17 @@ public interface Action {
 	 * @return True or false telling if the resource can be handled by this action.
 	 */
 	boolean accept(String resourceName);
+
+	//
+
+	/**
+	 * Tell if a resource is to be transformed.
+	 *
+	 * @param resourceName The name of the resource.
+	 *
+	 * @return True or false telling if the resource is to be transformed.
+	 */
+	boolean select(String resourceName);
 
 	//
 
@@ -213,4 +222,22 @@ public interface Action {
 	 *     had changes.
 	 */
 	boolean hasChanges();
+
+	/**
+	 * Tell if the last application of this action had changes other than
+	 * a resource name change.
+	 *
+	 * @return True or false telling if the last application of this action
+	 *     had changes other than resource name changes.
+	 */
+	boolean hasNonResourceNameChanges();
+
+	/**
+	 * Tell if the last application of this action changed the name of the
+	 * resource.
+	 *
+	 * @return True or false telling if the last application of this action
+	 *     changed the name of the resource.
+	 */
+	boolean hasResourceNameChange();
 }

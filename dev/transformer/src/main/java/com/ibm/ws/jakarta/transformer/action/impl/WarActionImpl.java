@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
+import com.ibm.ws.jakarta.transformer.action.ActionType;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.WarAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
@@ -33,6 +34,11 @@ public class WarActionImpl extends ActionImpl implements WarAction {
 
 	public String getName() {
 		return "WAR Action";
+	}
+
+	@Override
+	public ActionType getActionType() {
+		return ActionType.WAR;
 	}
 
 	//

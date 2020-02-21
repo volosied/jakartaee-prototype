@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
+import com.ibm.ws.jakarta.transformer.action.ActionType;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ServiceConfigAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
@@ -58,6 +59,11 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 		return "Service Config Action";
 	}
 
+	@Override
+	public ActionType getActionType() {
+		return ActionType.SERVICE_CONFIG;
+	}
+
 	//
 
 	@Override
@@ -92,7 +98,14 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 		throws JakartaTransformException {
 
 		clearChanges();
-		setResourceNames(inputName, inputName);
+
+		String outputName = renameInput(inputName);
+		if ( outputName == null ) {
+			outputName = inputName;
+		} else {
+			log("Service name [ %s ]\n          -> [ %s ]\n", inputName, outputName);
+		}
+		setResourceNames(inputName, outputName);
 
 		InputStream inputStream = new ByteArrayInputStream(inputBytes);
 		InputStreamReader inputReader;
@@ -130,7 +143,7 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 			return null;
 		}
 
-		if ( !hasChanges() ) {
+		if ( !hasNonResourceNameChanges() ) {
 			return null;
 		}
 
@@ -222,6 +235,44 @@ public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfig
 
 			writer.write(outputLine); // throws IOException
 			writer.newLine(); // throws IOException
+		}
+	}
+
+	protected String renameInput(String inputName) {
+		String inputPrefix;
+		String serviceQualifiedName;
+
+		int lastSlash = inputName.lastIndexOf('/');
+		if ( lastSlash == -1 ) {
+			inputPrefix = null;
+			serviceQualifiedName = inputName;
+		} else {
+			inputPrefix = inputName.substring(0, lastSlash + 1);
+			serviceQualifiedName = inputName.substring(lastSlash + 1);
+		}
+
+		int classStart = serviceQualifiedName.lastIndexOf('.');
+		if ( classStart == -1 ) {
+			return null;
+		}
+
+		String packageName = serviceQualifiedName.substring(0, classStart);
+		if ( packageName.isEmpty() ) {
+			return null;
+		}
+
+		// 'className' includes a leading '.'
+		String className = serviceQualifiedName.substring(classStart);
+
+		String outputName = replacePackage(packageName);
+		if ( outputName == null ) {
+			return null;
+		}
+
+		if ( inputPrefix == null ) {
+			return outputName + className;
+		} else {
+			return inputPrefix + outputName + className;
 		}
 	}
 }

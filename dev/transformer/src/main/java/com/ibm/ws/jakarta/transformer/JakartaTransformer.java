@@ -23,6 +23,7 @@ import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import com.ibm.ws.jakarta.transformer.action.ActionType;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ClassAction;
 import com.ibm.ws.jakarta.transformer.action.ClassChanges;
@@ -173,11 +174,6 @@ public class JakartaTransformer {
     public static final String DEFAULT_RENAMES_REFERENCE = "jakarta-renames.properties";
     public static final String DEFAULT_VERSIONS_REFERENCE = "jakarta-versions.properties";
     public static final String DEFAULT_BUNDLES_REFERENCE = "jakarta-bundles.properties";
-
-    public static enum TransformType {
-        CLASS, MANIFEST, FEATURE, SERVICE_CONFIG, XML,
-        ZIP, JAR, WAR, RAR, EAR;
-    }
 
     public static enum AppOption {
         USAGE  ("u", "usage",    "Display usage",
@@ -423,7 +419,7 @@ public class JakartaTransformer {
     	public Map<String, String> packageVersions;
     	public Map<String, BundleData> bundleUpdates;
 
-    	public TransformType transformType;
+    	public ActionType actionType;
 
     	public String inputName;
     	public String outputName;
@@ -433,7 +429,7 @@ public class JakartaTransformer {
         
         public File outputFile;
         public String outputPath;
-        
+
     	protected void setLogging() {
             if ( hasOption(AppOption.TERSE) ) {
             	isTerse = true;
@@ -561,84 +557,70 @@ public class JakartaTransformer {
     		}
     	}
 
+    	protected void setInput(String inputName, ActionType transformType) {
+    		this.inputName = FileUtils.normalize(inputName);
+    		this.actionType = transformType;
+            info("Input %s [ %s ]\n", this.actionType, this.inputName);
+    	}
+
         protected boolean setInput() {
             String className = getOptionValue(AppOption.CLASS);
             if ( className != null ) {
-                info("Input from class [ %s ]\n", className);
-                inputName = className;
-                transformType = TransformType.CLASS;
+                setInput(className, ActionType.CLASS);
                 return true;
             }
 
             String manifestName = getOptionValue(AppOption.MANIFEST);
             if ( manifestName != null ) {
-                info("Input from manifest [ %s ]\n", manifestName);
-                inputName = manifestName;
-                transformType = TransformType.MANIFEST;
+                setInput(manifestName, ActionType.MANIFEST);
                 return true;
             }
 
             String featureManifestName = getOptionValue(AppOption.FEATURE);
             if ( featureManifestName != null ) {
-                info("Input from feature manifest [ %s ]\n", featureManifestName);
-                inputName = featureManifestName;
-                transformType = TransformType.FEATURE;
+                setInput(featureManifestName, ActionType.FEATURE);
                 return true;
             }
 
             String serviceConfigName = getOptionValue(AppOption.SERVICE_CONFIG);
             if ( serviceConfigName != null ) {
-                info("Input from service configuration [ %s ]\n", serviceConfigName);
-                inputName = serviceConfigName;
-                transformType = TransformType.SERVICE_CONFIG;
+                setInput(serviceConfigName, ActionType.SERVICE_CONFIG);
                 return true;
             }
 
             String xmlName = getOptionValue(AppOption.XML);
             if ( xmlName != null ) {
-                info("Input from XML [ %s ]\n", xmlName);
-                inputName = xmlName;
-                transformType = TransformType.XML;
+                setInput(xmlName, ActionType.XML);
                 return true;
             }
 
             String zipName = getOptionValue(AppOption.ZIP);
             if ( zipName != null ) {
-                info("Input from zip file [ %s ]\n", zipName);
-                inputName = zipName;
-                transformType = TransformType.ZIP;
+                setInput(zipName, ActionType.ZIP);
                 return true;
             }
 
             String jarName = getOptionValue(AppOption.JAR);
             if ( jarName != null ) {
-                info("Input from jar file [ %s ]\n", jarName);
-                inputName = jarName;
-                transformType = TransformType.JAR;
+                setInput(jarName, ActionType.JAR);
                 return true;
             }
 
             String warName = getOptionValue(AppOption.WAR);
             if ( warName != null ) {
-                info("Input from web application archive [ %s ]\n", warName);
-                inputName = warName;
-                transformType = TransformType.WAR;
+                setInput(warName, ActionType.WAR);
                 return true;
             }
 
             String rarName = getOptionValue(AppOption.RAR);
             if ( rarName != null ) {
-                info("Input from resource archive [ %s ]\n", rarName);
-                inputName = rarName;
-                transformType = TransformType.RAR;
+                setInput(rarName, ActionType.RAR);
                 return true;
             }
 
             String earName = getOptionValue(AppOption.EAR);
             if ( earName != null ) {
-                info("Input from enterprise application archive [ %s ]\n", earName);
-                inputName = earName;
-                transformType = TransformType.EAR;
+                setInput(earName, ActionType.EAR);
                 return true;
             }
 
@@ -880,32 +862,32 @@ public class JakartaTransformer {
         	InputStream inputStream, long inputLength,
         	OutputStream outputStream) throws JakartaTransformException {
 
-        	if ( transformType == TransformType.CLASS ) {
+        	if ( actionType == ActionType.CLASS ) {
         		transformClass(inputStream, inputLength, outputStream);
-        	} else if ( transformType == TransformType.SERVICE_CONFIG) {
+        	} else if ( actionType == ActionType.SERVICE_CONFIG) {
         		transformServiceConfig(inputStream, inputLength, outputStream);
-        	} else if ( transformType == TransformType.MANIFEST) {
+        	} else if ( actionType == ActionType.MANIFEST) {
         		transformManifest(inputStream, inputLength, outputStream);
-        	} else if ( transformType == TransformType.FEATURE) {
+        	} else if ( actionType == ActionType.FEATURE) {
         		transformFeature(inputStream, inputLength, outputStream);
 
-        	} else if ( transformType == TransformType.XML ) {
+        	} else if ( actionType == ActionType.XML ) {
         		transformOther(inputStream, inputLength, outputStream);
 
-        	} else if ( transformType == TransformType.JAR ) {
+        	} else if ( actionType == ActionType.JAR ) {
         		transformJar(inputStream, inputLength, outputStream);
 
-        	} else if ( transformType == TransformType.ZIP ) {
+        	} else if ( actionType == ActionType.ZIP ) {
         		transformOther(inputStream, inputLength, outputStream);
-        	} else if ( transformType == TransformType.WAR ) {
+        	} else if ( actionType == ActionType.WAR ) {
         		transformOther(inputStream, inputLength, outputStream);
-        	} else if ( transformType == TransformType.RAR) {
+        	} else if ( actionType == ActionType.RAR) {
         		transformOther(inputStream, inputLength, outputStream);
-        	} else if ( transformType == TransformType.EAR ) {
+        	} else if ( actionType == ActionType.EAR ) {
         		transformOther(inputStream, inputLength, outputStream);
 
         	} else {
-        		throw new IllegalArgumentException("Unknown transform type [ " + transformType + " ]");
+        		throw new IllegalArgumentException("Unknown transform type [ " + actionType + " ]");
         	}
         }
     }

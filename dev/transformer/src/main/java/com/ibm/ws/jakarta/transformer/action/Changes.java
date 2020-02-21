@@ -8,5 +8,8 @@ public interface Changes {
 	void setOutputResourceName(String outputResourceName);
 
 	boolean hasChanges();
+	boolean hasNonResourceNameChanges();
+	boolean hasResourceNameChange();
+
 	void clearChanges();
 }

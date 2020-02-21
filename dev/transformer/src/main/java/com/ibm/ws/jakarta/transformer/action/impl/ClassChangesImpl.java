@@ -21,7 +21,7 @@ public class ClassChangesImpl extends ChangesImpl implements ClassChanges {
 	}
 
 	@Override
-	public boolean hasChanges() {
+	public boolean hasNonResourceNameChanges() {
 		return ( ((inputClassName != null) && (outputClassName != null) && !inputClassName.equals(outputClassName)) ||
 				 ((inputSuperName != null) && (outputSuperName != null) && !inputSuperName.equals(outputSuperName)) ||
 
