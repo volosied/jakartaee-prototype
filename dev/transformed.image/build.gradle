@@ -19,11 +19,13 @@ dependencies {
 
 task copyImage(type: Copy) {
   dependsOn ':source.image:unpackImage'
-  println 'Source Image: ' + project(':source.image').profileImage
-  println 'Target Image: ' + transformImage
   mkdir transformImages
   from file(project(':source.image').profileImage)
   into file(transformImage)
+  doLast {
+    println 'Source Image: ' + project(':source.image').profileImage
+    println 'Target Image: ' + transformImage
+  }
 
 }
 
@@ -101,6 +103,7 @@ task copyManifests(type: Copy){
 }
 
 task copyTestApp(type: Copy){
+    //println "$project.projectDir"
     from "$project.projectDir/test-apps"
     include "*.war"
     eachFile {
@@ -146,7 +149,7 @@ task transformImage() {
 
 task serverStart(type:Exec){
     workingDir "$transformImage/wlp/bin"
-    commandLine './server', 'start'
+    commandLine './server', 'start', "--clean"
 
 }
 

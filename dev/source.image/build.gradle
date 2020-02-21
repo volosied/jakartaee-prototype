@@ -57,14 +57,12 @@ ext {
 }
 
 task prepareProfiles() {
-  println 'Target Archive: ' + profileArchive
   mkdir profileArchives
 }
 
 liberty {
   def sourceConfig = 'src/config/' + profileType + '/server.xml'
   println 'Source Configuration: ' + sourceConfig
-
   server {
     configFile = file(sourceConfig)
 
@@ -77,6 +75,7 @@ liberty {
       include = 'minify'
     }
   }
+
 }
 
 task createImage {
@@ -104,9 +103,12 @@ ext {
 task unpackImage(type: Copy) {
   dependsOn 'createImage'
 
-  println 'Target Image: ' + profileImage
   mkdir profileImages
 
   from zipTree( file(profileArchive) )
   into file(profileImage)
+
+  doLast {
+     println 'Target Image: ' + profileImage
+  }
 }
