@@ -79,7 +79,11 @@ String[] bundlesToBeChanged = [  "com.ibm.ws.org.apache.commons.fileupload_1.0.3
                                  "com.ibm.ws.webcontainer.servlet.4.0.factories_1.0.36.jar",
                                  "com.ibm.ws.webcontainer.servlet.4.0_1.0.36.jar",
                                  "com.ibm.ws.webcontainer_1.1.36.jar",
-                                 "com.ibm.ws.webserver.plugin.runtime_1.0.36.jar" ] 
+                                 "com.ibm.ws.webserver.plugin.runtime_1.0.36.jar",
+                                 "com.ibm.ws.jsp.2.3_1.0.36.jar",
+                                 "com.ibm.ws.jsp.jstl.facade_1.0.36.jar",
+                                 "com.ibm.ws.jsp_1.0.36.jar",
+                                 "com.ibm.ws.org.apache.jasper.el.3.0_3.0.36.jar" ] 
 
 task deleteJavaxJars() {
     dependsOn zipJakarta
