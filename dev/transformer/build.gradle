@@ -1,3 +1,8 @@
+apply plugin: 'java-library'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+apply plugin: 'maven'
+
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
 
@@ -46,13 +51,11 @@ task testJar(type: Jar) {
     from sourceSets.test.output
 }
 
-tasks.named('wrapper') {
-  jarFile = rootProject.file('.gradle-wrapper/gradle-wrapper.jar')
-}
-
 task showArchives {
-  configurations.archive.each {
-    println it
+  doLast {
+    configurations.archive.each {
+      println it
+    }
   }
 }
 
@@ -75,3 +78,5 @@ task copyLibs(type: Copy) {
       println "Copied to build/libs"
     }
 }
+
+build.finalizedBy(copyLibs)
