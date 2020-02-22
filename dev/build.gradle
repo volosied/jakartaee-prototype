@@ -1,14 +1,9 @@
-
-
 allprojects {
     repositories {
         mavenCentral()
     }
 }
 
-project(':transformer') {
-    apply plugin:  'java-library'
-    apply plugin:  'eclipse'
-    apply plugin:  'application'
-    apply plugin: 'maven'
+tasks.named('wrapper') {
+  jarFile = rootProject.file('.gradle-wrapper/gradle-wrapper.jar')
 }
