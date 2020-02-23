@@ -2,7 +2,6 @@ package com.ibm.ws.jakarta.transformer.action.impl;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.List;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
@@ -13,6 +12,12 @@ import com.ibm.ws.jakarta.transformer.util.ByteData;
 
 public abstract class ContainerActionImpl extends ActionImpl implements ContainerAction {
 
+	public <A extends ActionImpl> A addUsing(ActionInit<A> init) {
+		A action = createUsing(init);
+		addAction(action);
+		return action;
+	}
+
 	public ContainerActionImpl(
 		LoggerImpl logger,
 		InputBufferImpl buffer,
@@ -21,13 +26,30 @@ public abstract class ContainerActionImpl extends ActionImpl implements Containe
 
 		super(logger, buffer, selectionRule, signatureRule);
 
-		this.actions = new ArrayList<ActionImpl>();
+		this.compositeAction = createUsing( CompositeActionImpl::new );
 	}
 
-	public <A extends ActionImpl> A addUsing(ActionInit<A> init) {
-		A action = createUsing(init);
-		addAction(action);
-		return action;
+	//
+
+	private final CompositeActionImpl compositeAction;
+
+	@Override
+	public CompositeActionImpl getAction() {
+		return compositeAction;
+	}
+
+	protected void addAction(ActionImpl action) {
+		getAction().addAction(action);
+	}
+
+	@Override
+	public List<ActionImpl> getActions() {
+		return getAction().getActions();
+	}
+
+	@Override
+	public ActionImpl acceptAction(String resourceName) {
+		return getAction().acceptAction(resourceName);
 	}
 
 	//
@@ -70,29 +92,6 @@ public abstract class ContainerActionImpl extends ActionImpl implements Containe
 			resourceName, action.getName(), action.hasChanges() );
 
 		getChanges().record(action);
-	}
-
-	//
-
-	private final List<ActionImpl> actions;
-
-	@Override
-	public List<ActionImpl> getActions() {
-		return actions;
-	}
-
-	protected void addAction(ActionImpl action) {
-		getActions().add(action);
-	}
-
-	@Override
-	public ActionImpl selectAction(String inputName) {
-		for ( ActionImpl action : getActions() ) {
-			if ( action.select(inputName) ) {
-				return action;
-			}
-		}
-		return null;
 	}
 
 	//

@@ -104,7 +104,7 @@ public class JarActionImpl extends ContainerActionImpl implements JarAction {
 				verbose("[ %s.%s ] [ %s ] Size [ %s ]\n",
 					getClass().getSimpleName(), "applyZip", inputName, inputLength);
 
-				Action selectedAction = selectAction(inputName);
+				Action selectedAction = acceptAction(inputName);
 
 				if ( !select(inputName) || (selectedAction == null) ) {
 					if ( selectedAction == null ) {

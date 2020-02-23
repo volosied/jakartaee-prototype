@@ -6,6 +6,7 @@ public interface ContainerAction extends Action {
 	@Override
 	ContainerChanges getChanges();
 
+	CompositeAction getAction();
 	List<? extends Action> getActions();
-	Action selectAction(String inputName);
+	Action acceptAction(String inputName);
 }
