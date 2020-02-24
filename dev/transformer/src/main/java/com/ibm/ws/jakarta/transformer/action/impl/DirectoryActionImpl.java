@@ -14,9 +14,9 @@ import java.util.Set;
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.Action;
 import com.ibm.ws.jakarta.transformer.action.ActionType;
-import com.ibm.ws.jakarta.transformer.action.ArchiveChanges;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ClassAction;
+import com.ibm.ws.jakarta.transformer.action.ContainerChanges;
 import com.ibm.ws.jakarta.transformer.action.DirectoryAction;
 import com.ibm.ws.jakarta.transformer.action.JarAction;
 import com.ibm.ws.jakarta.transformer.action.ManifestAction;
@@ -25,40 +25,15 @@ import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
 import com.ibm.ws.jakarta.transformer.util.InputStreamData;
 
-public class DirectoryActionImpl extends ActionImpl implements DirectoryAction {
+public class DirectoryActionImpl extends ContainerActionImpl implements DirectoryAction {
 
-	public DirectoryActionImpl(ActionImpl parentAction) {
-		super(parentAction);
-	}
+    public DirectoryActionImpl(LoggerImpl logger,
+                               InputBufferImpl buffer,
+                               SelectionRuleImpl selectionRule,
+                               SignatureRuleImpl signatureRule) {
 
-	public DirectoryActionImpl(Set<String> includes, 
-			                   Set<String> excludes, 
-			                   Map<String, String> renames,
-			                   Map<String, String> versions, 
-			                   Map<String, BundleData> bundleUpdates) {
-		
-		super(includes, excludes, renames, versions, bundleUpdates);
-	}
-
-	public DirectoryActionImpl(PrintStream logStream, 
-			                   boolean isTerse, 
-			                   boolean isVerbose,
-		                       Set<String> includes, 
-		                       Set<String> excludes, 
-		                       Map<String, String> renames,
-		                       Map<String, String> versions, 
-		                       Map<String, BundleData> bundleUpdates) {
-
-		super(logStream, 
-			  isTerse, 
-			  isVerbose,
-			  includes, 
-			  excludes,
-			  renames, 
-			  versions, 
-			  bundleUpdates);
-		System.out.println("*** DirectoryActionImpl constructor packageRenames=[" + this.getPackageRenames() + "]");
-	}
+            super(logger, buffer, selectionRule, signatureRule);
+    }
 
 	//
 
@@ -114,25 +89,7 @@ public class DirectoryActionImpl extends ActionImpl implements DirectoryAction {
 		
 	}
 	
-	ClassAction classAction = null;
-	ServiceConfigAction configAction = null;
-	ManifestAction manifestAction = null;
-	ManifestAction featureAction = null;
-	JarAction jarAction = null;
-	
 	public void apply(File inputFile, File outputFile)  throws JakartaTransformException {
-		classAction = new ClassActionImpl(this);
-		configAction = new ServiceConfigActionImpl(this);
-		manifestAction = new ManifestActionImpl(this, ManifestActionImpl.IS_MANIFEST);
-		featureAction = new ManifestActionImpl(this, ManifestActionImpl.IS_FEATURE);
-    	jarAction = new JarActionImpl(getLogStream(), 
-                                      getIsTerse(),
-                                      getIsVerbose(),
-                                      included, 
-                                      excluded,
-                                      packageRenames, 
-                                      packageVersions,
-                                      bundleUpdates);
 
         transformDirectoryTree(".", inputFile, outputFile);
     	
@@ -163,39 +120,21 @@ public class DirectoryActionImpl extends ActionImpl implements DirectoryAction {
 				for (String file : files) {
 					File srcFile = new File(inputFile, file);
 					File destFile = new File(outputFile, file);
-
+System.out.println("inputRelPath: [" + inputRelPath + "]");
 					transformDirectoryTree(inputRelPath, srcFile, destFile);
 				}
 
 			} else {
-				ClassAction classAction = new ClassActionImpl(this);
-				ServiceConfigAction configAction = new ServiceConfigActionImpl(this);
-				ManifestAction manifestAction = new ManifestActionImpl(this, ManifestActionImpl.IS_MANIFEST);
-				ManifestAction featureAction = new ManifestActionImpl(this, ManifestActionImpl.IS_FEATURE);
-				JarAction jarAction = new JarActionImpl(this);
 
-				Action selectedAction;
-
-				if ( classAction.accept(inputRelPath) ) {
-					selectedAction = classAction;
-				} else if ( configAction.accept(inputRelPath) ) {
-					selectedAction = configAction;
-				} else if ( jarAction.accept(inputRelPath) ) {
-					selectedAction = jarAction;
-				} else if ( manifestAction.accept(inputRelPath) ) {
-					selectedAction = manifestAction;
-				} else if ( featureAction.accept(inputRelPath) ) {
-					selectedAction = featureAction;
-				} else {
-					selectedAction = null;
-				}
+				Action selectedAction = selectAction(inputRelPath);
+				System.out.println("selectAction: [" + selectedAction.getName() + "]");
 				
 				if ( !select(inputRelPath) || (selectedAction == null) ) {
 
 					if ( selectedAction == null ) {
 						recordUnaccepted(inputRelPath);
 					} else {
-						recordUnselected(selectedAction, !ArchiveChanges.HAS_CHANGES, inputRelPath);
+						recordUnselected(selectedAction, !ContainerChanges.HAS_CHANGES, inputRelPath);
 					}
 
 				} else {
@@ -207,10 +146,10 @@ public class DirectoryActionImpl extends ActionImpl implements DirectoryAction {
 					int intLength = FileUtils.verifyArray(0, inputLength);
 
 					if (selectedAction instanceof JarAction) {
-						jarAction.apply(inputFile.getAbsolutePath(), 
-                                        inStream, 
-                                        outputFile.getAbsolutePath(), 
-                                        outStream);
+					    ((JarActionImpl)selectedAction).apply(inputFile.getAbsolutePath(), 
+                                                              inStream, 
+                                                              outputFile.getAbsolutePath(), 
+                                                              outStream);
 					} else {
 						InputStreamData outputData = selectedAction.apply(inputFile.getName(), inStream, intLength);
 

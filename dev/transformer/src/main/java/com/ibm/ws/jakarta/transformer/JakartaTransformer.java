@@ -838,16 +838,14 @@ public class JakartaTransformer {
 
         protected void transformDirectory(File inputFile,
         		                          File outputFile) throws JakartaTransformException {
-										  
+    		
     		DirectoryActionImpl dirAction = new DirectoryActionImpl(
-                	                            getInfoStream(), 
-                	                            isTerse, 
-                	                            isVerbose,
-                	                            includes, 
-                	                            excludes,
-                	                            packageRenames, 
-                	                            packageVersions, 
-                	                            bundleUpdates);
+                    getLogger(), getBuffer(), getSelectionRule(), getSignatureRule());
+                dirAction.addUsing( ClassActionImpl::new );
+                dirAction.addUsing( ServiceConfigActionImpl::new );
+                dirAction.addUsing( ManifestActionImpl::newManifestAction );
+                dirAction.addUsing( ManifestActionImpl::newFeatureAction );
+                dirAction.addUsing( JarActionImpl::new );
 
     		dirAction.apply(inputFile, outputFile);
 
@@ -871,48 +869,10 @@ public class JakartaTransformer {
     		jarAction.addUsing( ManifestActionImpl::newFeatureAction );
 
         	jarAction.apply(inputPath, inputStream, outputPath, outputStream); 
-
+            
             if ( jarAction.hasChanges() ) {
-            	JarChanges jarChanges = jarAction.getChanges();
-
-//            	================================================================================
-//            	[ Jar Input  ] [ c:\dev\jakarta-repo-pub\jakartaee-prototype\dev\transformer\app\test.jar ]
-//            	[ Jar Output ] [ c:\dev\jakarta-repo-pub\jakartaee-prototype\dev\transformer\app\testOutput.jar ]
-//            	================================================================================  
-//            	[          All Resources ] [     55 ] Unselected [      6 ] Selected [     49 ]
-//            	================================================================================  
-//            	[            All Actions ] [     49 ]   Unchangd [     43 ]  Changed [      6 ]
-//            	[           Class Action ] [     41 ]  Unchanged [     38 ]  Changed [      3 ]
-//            	[        Manifest Action ] [      1 ]  Unchanged [      0 ]  Changed [      1 ]
-//            	[  Service Config Action ] [      7 ]  Unchanged [      5 ]  Changed [      2 ]
-//            	================================================================================
-
-            	info( DASH_LINE );
-            	info( "[ Jar Input  ] [ %s ]\n", jarChanges.getInputResourceName() );
-            	info( "[ Jar Output ] [ %s ]\n", jarChanges.getOutputResourceName() );
-
-            	info( DASH_LINE );
-            	info( JAR_LINE,
-            		"All Resources", jarChanges.getAllResources(),
-            		"Unselected", jarChanges.getAllUnselected(),
-            		"Selected", jarChanges.getAllSelected() );
-
-            	info( DASH_LINE );
-            	info( JAR_LINE,
-            		"All Actions", jarChanges.getAllSelected(),
-            		"Unchanged", jarChanges.getAllUnchanged(),
-            		"Changed", jarChanges.getAllChanged());
-
-            	for ( String actionName : jarChanges.getActionNames() ) {
-            		int unchangedByAction = jarChanges.getUnchanged(actionName); 
-            		int changedByAction = jarChanges.getChanged(actionName);
-            		info(JAR_LINE,
-            			actionName, unchangedByAction + changedByAction,
-            			"Unchanged", unchangedByAction,
-            			"Changed", changedByAction);
-            	}
-
-            	info( DASH_LINE );
+                JarChanges jarChanges = jarAction.getChanges();
+                jarChanges.displayChanges();
             }
         }
 

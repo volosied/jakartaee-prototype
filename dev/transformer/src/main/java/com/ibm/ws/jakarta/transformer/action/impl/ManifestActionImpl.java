@@ -229,7 +229,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 			String finalValue = null;
 
 			if ( selectAttribute(typedName) ) {
-			   finalValue = replacePackages(typedName, initialValue);
+			   finalValue = replacePackages(initialValue);
 			}
 
 			if ( finalValue == null ) {
@@ -368,7 +368,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 	 * @return The text with all embedded package names replaced.  Null if no
 	 *     replacements were performed.
 	 */
-	protected String replacePackages(String mainAttribute, String text) {
+	protected String replacePackages(String text) {
 
 		// System.out.println("Initial text [ " + text + " ]");
 
