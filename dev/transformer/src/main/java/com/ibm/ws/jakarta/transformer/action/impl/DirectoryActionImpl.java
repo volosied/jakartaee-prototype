@@ -45,28 +45,6 @@ public class DirectoryActionImpl extends ContainerActionImpl implements Director
 		return (DirectoryChangesImpl) super.getChanges();
 	}
 
-	protected void recordUnaccepted(String resourceName) {
-		verbose( "Resource [ %s ]: Not accepted\n", resourceName );
-
-		getChanges().record();
-	}
-
-	protected void recordUnselected(Action action, boolean hasChanges, String resourceName) {
-		verbose(
-			"Resource [ %s ] Action [ %s ]: Accepted but not selected\n",
-			resourceName, action.getName() );
-
-		getChanges().record(action, hasChanges);
-	}
-
-	protected void recordTransform(Action action, String resourceName) {
-		verbose(
-			"Resource [ %s ] Action [ %s ]: Changes [ %s ]\n",
-			resourceName, action.getName(), action.hasChanges() );
-
-		getChanges().record(action);
-	}
-
 	//
 
 	@Override
@@ -77,12 +55,13 @@ public class DirectoryActionImpl extends ContainerActionImpl implements Director
 	@Override
 	public void apply(String inputPath, InputStream inputStream, String outputPath, OutputStream outputStream)
 			throws JakartaTransformException {
-		throw new JakartaTransformException("Dude! Don't give me streams.  It's Files I need.");
+        throw new UnsupportedOperationException();
 		
 	}
 	
 	public void apply(File inputFile, File outputFile)  throws JakartaTransformException {
 
+	    setResourceNames(inputFile.getAbsolutePath(), outputFile.getAbsolutePath());
         transformDirectoryTree(".", inputFile, outputFile);
     	
 	}
@@ -95,67 +74,66 @@ public class DirectoryActionImpl extends ContainerActionImpl implements Director
 	 * @throws JakartaTransformException
 	 */
 	protected void transformDirectoryTree(String inputRelativePath, File inputFile, File outputFile)  throws JakartaTransformException {
-		
-		setResourceNames(inputFile.getAbsolutePath(), outputFile.getAbsolutePath());
-		String inputRelPath = inputRelativePath + "/" + inputFile.getName();
 
-		try {
+	    String inputRelPath = inputRelativePath + "/" + inputFile.getName();
 
-			if (inputFile.isDirectory()) {
+	    try {
 
-				if (!outputFile.exists() ) {
-					outputFile.mkdir();
-				}
+	        if (inputFile.isDirectory()) {
 
-				String[] files = inputFile.list();
+	            if (!outputFile.exists() ) {
+	                outputFile.mkdir();
+	            }
 
-				for (String file : files) {
-					File srcFile = new File(inputFile, file);
-					File destFile = new File(outputFile, file);
-					transformDirectoryTree(inputRelPath, srcFile, destFile);
-				}
+	            String[] files = inputFile.list();
 
-			} else {
+	            for (String file : files) {
+	                File srcFile = new File(inputFile, file);
+	                File destFile = new File(outputFile, file);
+	                transformDirectoryTree(inputRelPath, srcFile, destFile);
+	            }
 
-				Action selectedAction = acceptAction(inputRelPath);
-				
-				if ( !select(inputRelPath) || (selectedAction == null) ) {
+	        } else {
 
-					if ( selectedAction == null ) {
-						recordUnaccepted(inputRelPath);
-					} else {
-						recordUnselected(selectedAction, !ContainerChanges.HAS_CHANGES, inputRelPath);
-					}
+	            Action selectedAction = acceptAction(inputRelPath);
 
-				} else {
-					InputStream inStream = new FileInputStream(inputFile);
-					OutputStream outStream = new FileOutputStream(outputFile); 
+	            if ( !select(inputRelPath) || (selectedAction == null) ) {
 
-					long inputLength = inputFile.length();
-					int intLength = FileUtils.verifyArray(0, inputLength);
+	                if ( selectedAction == null ) {
+	                    recordUnaccepted(inputRelPath);
+	                } else {
+	                    recordUnselected(selectedAction, !ContainerChanges.HAS_CHANGES, inputRelPath);
+	                }
 
-					if (selectedAction instanceof JarAction) {
-					    ((JarActionImpl)selectedAction).apply(inputFile.getAbsolutePath(), 
-                                                              inStream, 
-                                                              outputFile.getAbsolutePath(), 
-                                                              outStream);
-					} else {
-						InputStreamData outputData = selectedAction.apply(inputFile.getName(), inStream, intLength);
+	            } else {
+	                InputStream inStream = new FileInputStream(inputFile);
+	                OutputStream outStream = new FileOutputStream(outputFile); 
 
-						recordTransform(selectedAction, inputFile.getName());
+	                if (selectedAction instanceof JarAction) {
+	                    ((JarActionImpl)selectedAction).apply(inputFile.getAbsolutePath(), 
+	                                                          inStream, 
+	                                                          outputFile.getAbsolutePath(), 
+	                                                          outStream);
+	                } else {
+	                    long inputLength = inputFile.length();
+	                    int intLength = FileUtils.verifyArray(0, inputLength);
 
-						FileUtils.transfer(outputData.stream, outStream);
+	                    InputStreamData outputData = selectedAction.apply(inputFile.getName(), inStream, intLength);
 
-						inStream.close();
-						outStream.close();
-					}
+	                    recordTransform(selectedAction, inputFile.getName());
 
-				} 
-			}
-		} catch (IOException ioe) {
+	                    FileUtils.transfer(outputData.stream, outStream);
 
-			throw new JakartaTransformException(ioe.getMessage(), ioe);
-		}
+	                    inStream.close();
+	                    outStream.close();
+	                }
+
+	            } 
+	        }
+	    } catch (IOException ioe) {
+
+	        throw new JakartaTransformException(ioe.getMessage(), ioe);
+	    }
 	}	
 
 	@Override

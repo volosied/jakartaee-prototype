@@ -6,7 +6,7 @@ import java.io.File;
 
 public interface DirectoryAction extends Action {
     
-    public void apply(File inputFile, File outputFile)  throws JakartaTransformException; 
+    void apply(File inputFile, File outputFile)  throws JakartaTransformException; 
     
 	@Override
 	DirectoryChanges getChanges();

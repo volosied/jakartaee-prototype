@@ -225,7 +225,7 @@ public class JakartaTransformer {
 //        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
 //        EAR  ("e", "ear",   "Input enterprise application archive",
 //        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-
+//
 //        OUTPUT("o", "output", "Output file",
 //        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
 
@@ -347,6 +347,10 @@ public class JakartaTransformer {
         return parsedArgs;
     }
     
+    /**
+     * The input file name is the first command line argument
+     * and is required.
+     */
     protected String getInputFileName() {
     	String[] args = parsedArgs.getArgs();
     	if ( args != null ) {
@@ -357,14 +361,29 @@ public class JakartaTransformer {
     	return null;
     }
     
+    /**
+     * The output file name is the second command line argument
+     * and is optional.  If not specified, a default output file name
+     * is created based on the input file name.
+     */
     protected String getOutputFileName() {
-    	String[] args = parsedArgs.getArgs();
-    	if ( args != null ) {
-        	if (args.length > 1) {
-        		return FileUtils.normalize(args[1]);
-        	} 
-    	}
-    	return null;
+        String[] args = parsedArgs.getArgs();
+        if ( args != null ) {
+            if (args.length > 1) {
+                return FileUtils.normalize(args[1]);
+            } 
+        }
+
+        info("Output file not specified.\n");
+
+        final String OUTPUT_PREFIX = "output_";
+        String inputFileName = getInputFileName();
+        int indexOfLastSlash = inputFileName.lastIndexOf('/');
+        if (indexOfLastSlash == -1 ) {
+            return OUTPUT_PREFIX + inputFileName; 
+        } else {
+            return inputFileName.substring(0, indexOfLastSlash+1) + OUTPUT_PREFIX + inputFileName.substring(indexOfLastSlash+1);
+        }
     }
     
     protected boolean hasOption(AppOption option) {
@@ -627,9 +646,24 @@ public class JakartaTransformer {
         protected boolean setInput() {
         	
         	inputName = getInputFileName();
+            if ( inputName == null ) {
+                error("No input file was specified\n");
+                return false;
+            }
+        	
+            inputFile = new File(inputName);
+            if ( !inputFile.exists() ) {
+                error("Input does not exist [ " + inputFile.getAbsolutePath() + " ]\n");
+                return false;
+            }
+            
+            inputPath = inputFile.getAbsolutePath();
+            info("Input path [ %s ]\n", inputPath);
+            
+        	
         	String lowerInputName = inputName.toLowerCase();
         	
-        	if ((new File(inputName)).isDirectory()) {
+        	if (inputFile.isDirectory()) {
         		this.actionType = ActionType.DIRECTORY;
         		
         	} else if (lowerInputName.endsWith(".class")) {
@@ -673,12 +707,15 @@ public class JakartaTransformer {
             return true;
         }
         
-        private boolean isFeatureManifest(String fileName) {
-            try {
-
-                File f = new File(fileName);
-
-                BufferedReader bufferedReader = new BufferedReader(new FileReader(f));
+        /**
+         * Given a MANIFEST.MF file, if it has a line length greater than 32, then assume 
+         * it is a feature manifest.
+         */
+        private boolean isFeatureManifest(String manifestFileName) {
+            
+            File f = new File(manifestFileName);
+            
+            try ( BufferedReader bufferedReader = new BufferedReader(new FileReader(f) ) ) {
 
                 String line;
 
@@ -690,41 +727,23 @@ public class JakartaTransformer {
 
             } catch (IOException e) {
                 e.printStackTrace();
-            }
+            } 
             return false;
         }
 
         protected boolean setOutput() {
-        	
-            outputName = getOutputFileName(); //getOptionValue(AppOption.OUTPUT);
-            if ( outputName != null ) {
-            	info("Transformation output to [ %s ]\n", outputName);
-            	return true;
-            } else {
-            	return false;
-            }
-        }
 
-        protected boolean validateFiles() {
-            inputFile = new File(inputName);
-            inputPath = inputFile.getAbsolutePath();
-            info("Input path [ %s ]\n", inputPath);
-
+            outputName = getOutputFileName();
             outputFile = new File(outputName);
             outputPath = outputFile.getAbsolutePath();
-            info("Output path [ %s ]\n", outputPath);
 
-            if ( !inputFile.exists() ) {
-            	error("Input does not exist [ " + inputFile.getAbsolutePath() + " ]\n");
-            	return false;
-
-            }
-
+            // TODO:  Create an option to override this?  
             if ( outputFile.exists() ) {
-            	error("Output already exists [ " + outputFile.getAbsolutePath() + " ]\n");
-            	return false;
+                error("Output already exists [ " + outputFile.getAbsolutePath() + " ]\n");
+                return false;
             }
 
+            info("Transformation output to [ %s ]\n", outputName);
             return true;
         }
 
@@ -862,7 +881,7 @@ public class JakartaTransformer {
 
     		if ( dirAction.hasChanges() ) {
     			DirectoryChanges dirChanges = dirAction.getChanges();
-                dirChanges.displayChanges();
+                dirChanges.displayChanges(infoStream);
     		}
         }
         
@@ -883,7 +902,7 @@ public class JakartaTransformer {
             
             if ( jarAction.hasChanges() ) {
                 JarChanges jarChanges = jarAction.getChanges();
-                jarChanges.displayChanges();
+                jarChanges.displayChanges(infoStream);
             }
         }
 
@@ -956,12 +975,10 @@ public class JakartaTransformer {
         options.setLogging();
 
         if ( !options.setInput() ) { 
-            error("No input file was specified");
             return TRANSFORM_ERROR_RC;
-        } else if ( !options.setOutput() ) {
-            error("No output file was specified");
-            return TRANSFORM_ERROR_RC;
-        } else if ( !options.validateFiles() ) {
+        }
+         
+        if ( !options.setOutput() ) {
             return TRANSFORM_ERROR_RC;
         }
 

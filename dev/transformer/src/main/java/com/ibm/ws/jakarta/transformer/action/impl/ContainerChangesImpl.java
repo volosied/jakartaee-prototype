@@ -1,5 +1,6 @@
 package com.ibm.ws.jakarta.transformer.action.impl;
 
+import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -168,7 +169,7 @@ public class ContainerChangesImpl extends ChangesImpl implements ContainerChange
 			"[ %22s ] [ %6s ] %10s [ %6s ] %8s [ %6s ]\n";
 
     @Override
-	public void displayChanges() {
+	public void displayChanges(PrintStream stream) {
 
 		// ================================================================================
 		// [ Input  ] [ c:\dev\jakarta-repo-pub\jakartaee-prototype\dev\transformer\app\test.jar ]
@@ -182,18 +183,18 @@ public class ContainerChangesImpl extends ChangesImpl implements ContainerChange
 		// [  Service Config Action ] [      7 ]  Unchanged [      5 ]  Changed [      2 ]
 		// ================================================================================
 
-		info( DASH_LINE );
-		info( "[ Input  ] [ %s ]\n", this.getInputResourceName() );
-		info( "[ Output ] [ %s ]\n", this.getOutputResourceName() );
+		info( stream, DASH_LINE );
+		info( stream, "[ Input  ] [ %s ]\n", this.getInputResourceName() );
+		info( stream, "[ Output ] [ %s ]\n", this.getOutputResourceName() );
 
-		info( DASH_LINE );
-		info( DATA_LINE,
+		info( stream, DASH_LINE );
+		info( stream, DATA_LINE,
 				"All Resources", this.getAllResources(),
 				"Unselected", getAllUnselected(),
 				"Selected", getAllSelected() );
 
-		info( DASH_LINE );
-		info( DATA_LINE,
+		info( stream, DASH_LINE );
+		info( stream, DATA_LINE,
 				"All Actions", getAllSelected(),
 				"Unchanged", getAllUnchanged(),
 				"Changed", getAllChanged());
@@ -201,16 +202,18 @@ public class ContainerChangesImpl extends ChangesImpl implements ContainerChange
 		for ( String actionName : getActionNames() ) {
 			int unchangedByAction = getUnchanged(actionName); 
 			int changedByAction = getChanged(actionName);
-			info(DATA_LINE,
+			info( stream, DATA_LINE,
 					actionName, unchangedByAction + changedByAction,
 					"Unchanged", unchangedByAction,
 					"Changed", changedByAction);
 		}
 
-		info( DASH_LINE );
+		info( stream, DASH_LINE );
 	}
 
-    private void info(String text, Object... parms) {
-    	System.out.printf(text, parms);
+    private void info(PrintStream stream, String text, Object... parms) {
+
+        stream.printf(text, parms);
+    	
     }
 }

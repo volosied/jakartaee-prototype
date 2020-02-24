@@ -1,7 +1,6 @@
 package com.ibm.ws.jakarta.transformer.action.impl;
 
 import com.ibm.ws.jakarta.transformer.action.Changes;
-import com.ibm.ws.jakarta.transformer.action.JarChanges;
 
 public abstract class ChangesImpl implements Changes {
 	public ChangesImpl() {
