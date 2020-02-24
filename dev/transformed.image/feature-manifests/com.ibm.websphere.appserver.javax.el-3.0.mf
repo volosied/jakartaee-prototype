@@ -4,7 +4,7 @@ IBM-Feature-Version: 2
 IBM-InstallTo: core
 IBM-License-Agreement: wlp/lafiles/LA
 IBM-ProductID: io.openliberty
-Subsystem-Content: jakarta.el-api; location:="dev/api/spec/,lib/"; mavenCoordinates="javax.el:javax.el-api:3.0.0"; version="[1.0.0,5.0.200)"
+Subsystem-Content: jakarta.el-api; location:="dev/api/spec/,lib/"; version="[1.0.0,4.0.0]"
 Subsystem-Description: %description
 Subsystem-License: https://www.eclipse.org/legal/epl-v10.html
 Subsystem-Localization: OSGI-INF/l10n/com.ibm.websphere.appserver.javax.el-3.0

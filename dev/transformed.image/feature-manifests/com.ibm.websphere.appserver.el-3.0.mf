@@ -1,5 +1,5 @@
 Created-By: 11.0.2 (Eclipse OpenJ9)
-IBM-API-Package: javax.el; type=spec,
+IBM-API-Package: jakarta.el; type=spec,
  org.apache.el; type=internal,
  org.apache.el.lang; type=internal,
  org.apache.el.util; type=internal,
