@@ -8,14 +8,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
-import java.util.Map;
-import java.util.Set;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.ActionType;
-import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ServiceConfigAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 
@@ -34,23 +30,13 @@ import com.ibm.ws.jakarta.transformer.util.ByteData;
  */
 public class ServiceConfigActionImpl extends ActionImpl implements ServiceConfigAction {
 
-	public ServiceConfigActionImpl(ActionImpl parentAction) {
-		super(parentAction);
-	}
-
-	public ServiceConfigActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames,
-			Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
-		super(includes, excludes, renames, versions, bundleUpdates);
-	}
-
 	public ServiceConfigActionImpl(
-		PrintStream logStream, boolean isTerse, boolean isVerbose,
-		Set<String> includes, Set<String> excludes, Map<String, String> renames,
-		Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
+		LoggerImpl logger,
+		InputBufferImpl buffer,
+		SelectionRuleImpl selectionRule,
+		SignatureRuleImpl signatureRule) {
 
-		super(logStream, isTerse, isVerbose,
-			  includes, excludes,
-			  renames, versions, bundleUpdates);
+		super(logger, buffer, selectionRule, signatureRule);
 	}
 
 	//

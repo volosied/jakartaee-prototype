@@ -5,13 +5,11 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
-import java.util.Set;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.ActionType;
-import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.ClassAction;
+import com.ibm.ws.jakarta.transformer.action.SignatureRule.SignatureType;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
 
@@ -95,25 +93,13 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 		useOutput.println();
 	}
 
-	public ClassActionImpl(ActionImpl parentAction) {
-		super(parentAction);
-	}
-
 	public ClassActionImpl(
-		Set<String> includes, Set<String> excludes,
-		Map<String, String> renames, Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
+		LoggerImpl logger,
+		InputBufferImpl buffer,
+		SelectionRuleImpl selectionRule,
+		SignatureRuleImpl signatureRule) {
 
-		super(includes, excludes, renames, versions, bundleUpdates);
-	}
-
-	public ClassActionImpl(
-		PrintStream logStream, boolean isTerse, boolean isVerbose,
-		Set<String> includes, Set<String> excludes, Map<String, String> renames,
-		Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
-
-		super(logStream, isTerse, isVerbose,
-			  includes, excludes,
-			  renames, versions, bundleUpdates);
+		super(logger, buffer, selectionRule, signatureRule);
 	}
 
 	//

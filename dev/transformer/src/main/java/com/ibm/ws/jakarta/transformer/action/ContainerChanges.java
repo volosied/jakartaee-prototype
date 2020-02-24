@@ -2,7 +2,7 @@ package com.ibm.ws.jakarta.transformer.action;
 
 import java.util.Set;
 
-public interface ArchiveChanges extends Changes {
+public interface ContainerChanges extends Changes {
 	int getAllResources();
 
 	int getAllUnselected();

@@ -1,33 +1,21 @@
 package com.ibm.ws.jakarta.transformer.action.impl;
 
-import java.io.PrintStream;
-import java.util.Map;
-import java.util.Set;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.ActionType;
-import com.ibm.ws.jakarta.transformer.action.BundleData;
 import com.ibm.ws.jakarta.transformer.action.WarAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 
-public class WarActionImpl extends ActionImpl implements WarAction {
-	public WarActionImpl(ActionImpl parentAction) {
-		super(parentAction);
-	}
-
-	public WarActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames,
-			Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
-		super(includes, excludes, renames, versions, bundleUpdates);
-	}
-
+public class WarActionImpl extends ContainerActionImpl implements WarAction {
 	public WarActionImpl(
-		PrintStream logStream, boolean isTerse, boolean isVerbose,
-		Set<String> includes, Set<String> excludes, Map<String, String> renames,
-		Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
+		LoggerImpl logger,
+		InputBufferImpl buffer,
+		SelectionRuleImpl selectionRule,
+		SignatureRuleImpl signatureRule) {
 
-		super(logStream, isTerse, isVerbose,
-			  includes, excludes,
-			  renames, versions, bundleUpdates);
+		super(logger, buffer, selectionRule, signatureRule);
 	}
 
 	//
@@ -68,5 +56,11 @@ public class WarActionImpl extends ActionImpl implements WarAction {
 	@Override
 	public ByteData apply(String inputName, byte[] inputBytes, int inputLength) throws JakartaTransformException {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void apply(String inputPath, InputStream inputStream, String outputPath, OutputStream outputStream)
+			throws JakartaTransformException {
+		// TODO
 	}
 }

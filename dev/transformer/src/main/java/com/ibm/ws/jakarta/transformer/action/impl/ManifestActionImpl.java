@@ -3,7 +3,6 @@ package com.ibm.ws.jakarta.transformer.action.impl;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.Map;
@@ -27,51 +26,34 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 	public static final boolean IS_MANIFEST = true;
 	public static final boolean IS_FEATURE = !IS_MANIFEST;	
 
-	public ManifestActionImpl(ActionImpl parent, boolean isManifest) {
-		super(parent);
-		this.isManifest = isManifest;
+	public static ManifestActionImpl newManifestAction(
+		LoggerImpl logger,
+		InputBufferImpl buffer,
+		SelectionRuleImpl selectionRule,
+		SignatureRuleImpl signatureRule) {
+
+		return new ManifestActionImpl(logger, buffer, selectionRule, signatureRule, IS_MANIFEST);
+	}
+
+	public static ManifestActionImpl newFeatureAction(
+		LoggerImpl logger,
+		InputBufferImpl buffer,
+		SelectionRuleImpl selectionRule,
+		SignatureRuleImpl signatureRule) {
+
+		return new ManifestActionImpl(logger, buffer, selectionRule, signatureRule, IS_FEATURE);
 	}
 
 	public ManifestActionImpl(
-		Set<String> includes, Set<String> excludes, Map<String, String> renames,
-		boolean isManifest,
-		Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
+			LoggerImpl logger,
+			InputBufferImpl buffer,
+			SelectionRuleImpl selectionRule,
+			SignatureRuleImpl signatureRule,
+			boolean isManifest) {
 
-		super(includes, excludes, renames, versions, bundleUpdates);
-
-		this.isManifest = isManifest;
-	}
-
-	public ManifestActionImpl(
-		PrintStream logStream, boolean isTerse, boolean isVerbose,
-		Set<String> includes, Set<String> excludes, Map<String, String> renames,
-		boolean isManifest,
-		Map<String, String> versions,
-		Map<String, BundleData> bundleUpdates) {
-
-		super(logStream, isTerse, isVerbose,
-		      includes, excludes,
-		      renames, versions, bundleUpdates);
+		super(logger, buffer, selectionRule, signatureRule);
 
 		this.isManifest = isManifest;
-	}
-
-	public ManifestActionImpl(ActionImpl parent) {
-		this(parent, IS_MANIFEST);
-	}
-
-	public ManifestActionImpl(Set<String> includes, Set<String> excludes, Map<String, String> renames) {
-		this(includes, excludes, renames, IS_MANIFEST, null, null);
-	}
-
-	public ManifestActionImpl(
-		PrintStream logStream, boolean isTerse, boolean isVerbose,
-		Set<String> includes, Set<String> excludes, Map<String, String> renames,
-		Map<String, String> versions, Map<String, BundleData> bundleUpdates) {
-
-		this(logStream, isTerse, isVerbose,
-			 includes, excludes,
-			 renames, IS_MANIFEST, versions, bundleUpdates);
 	}
 
 	//
