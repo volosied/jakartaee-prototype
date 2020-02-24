@@ -1,6 +1,8 @@
 package com.ibm.ws.jakarta.transformer;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -202,30 +204,30 @@ public class JakartaTransformer {
         INVERT("i", "invert", "Invert transformation rules",
            	!OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
 
-        CLASS("c", "class", "Input class",
-        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-        MANIFEST("m", "manifest", "Input manifest",
-            OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-        FEATURE("f", "feature", "Input feature manifest",
-            OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-        SERVICE_CONFIG("s", "service config", "Input service configuration",
-        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-        XML("x", "xml", "Input XML",
-        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        CLASS("c", "class", "Input class",
+//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        MANIFEST("m", "manifest", "Input manifest",
+//            OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        FEATURE("f", "feature", "Input feature manifest",
+//            OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        SERVICE_CONFIG("s", "service config", "Input service configuration",
+//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        XML("x", "xml", "Input XML",
+//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
 
-        ZIP  ("z", "zip",   "Input zip archive",
-        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-        JAR  ("j", "jar",   "Input java archive",
-        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-        WAR  ("w", "war",   "Input web application archive",
-        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-        RAR  ("r", "rar",   "Input resource archive",
-        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-        EAR  ("e", "ear",   "Input enterprise application archive",
-        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        ZIP  ("z", "zip",   "Input zip archive",
+//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        JAR  ("j", "jar",   "Input java archive",
+//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        WAR  ("w", "war",   "Input web application archive",
+//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        RAR  ("r", "rar",   "Input resource archive",
+//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        EAR  ("e", "ear",   "Input enterprise application archive",
+//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
 
-        OUTPUT("o", "output", "Output file",
-        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+//        OUTPUT("o", "output", "Output file",
+//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
 
     	DRYRUN("d", "dryrun", "Dry run",
             !OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP);
@@ -622,22 +624,10 @@ public class JakartaTransformer {
     		return signatureRules;
     	}
 
-//    	protected void setInput(String inputName, ActionType transformType) {
-//    		//this.inputName = FileUtils.normalize(inputName);
-//    		this.actionType = transformType;
-//            info("Input %s [ %s ]\n", this.actionType, this.inputName);
-//    	}
-
         protected boolean setInput() {
         	
         	inputName = getInputFileName();
         	String lowerInputName = inputName.toLowerCase();
-        	
-//        	File test = new File(inputName);
-//        	System.out.println("File name is: [" + test.getName() + "]");
-//        	System.out.println("File path is: [" + test.getAbsolutePath() + "]");
-//        	System.out.println("File exists?: [" + test.exists() + "]");
-//        	System.out.println("File is dir: [" + test.isDirectory() + "]");
         	
         	if ((new File(inputName)).isDirectory()) {
         		this.actionType = ActionType.DIRECTORY;
@@ -647,13 +637,13 @@ public class JakartaTransformer {
         		
         	} else if (lowerInputName.endsWith(".mf")) {
         		
-        		// TODO - detect MANIFEST vs FEATURE MANIFEST
-        		//    read file and check line lengths > 72
-        		//   OR have a -type option to specify the file type
-        		this.actionType = ActionType.FEATURE;
-        		this.actionType = ActionType.MANIFEST;
+        	    if (isFeatureManifest(inputName)) {
+        		   this.actionType = ActionType.FEATURE;
+        	    } else {
+        		   this.actionType = ActionType.MANIFEST;
+        	    }
         		
-        	} else if (lowerInputName.endsWith(".??????")) {
+        	} else if (inputName.contains("META-INF/services/")) { // case sensitive
         		this.actionType = ActionType.SERVICE_CONFIG;
         		
         	} else if (lowerInputName.endsWith(".xml")) {
@@ -681,6 +671,27 @@ public class JakartaTransformer {
             info("Input %s [ %s ]\n", this.actionType, this.inputName);
 
             return true;
+        }
+        
+        private boolean isFeatureManifest(String fileName) {
+            try {
+
+                File f = new File(fileName);
+
+                BufferedReader bufferedReader = new BufferedReader(new FileReader(f));
+
+                String line;
+
+                while ((line = bufferedReader.readLine()) != null) {
+                    if (line.length() > 72) {
+                        return true;
+                    }
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return false;
         }
 
         protected boolean setOutput() {

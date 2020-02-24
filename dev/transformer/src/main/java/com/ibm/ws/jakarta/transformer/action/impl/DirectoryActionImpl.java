@@ -6,21 +6,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
-
-import java.util.Map;
-import java.util.Set;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
 import com.ibm.ws.jakarta.transformer.action.Action;
 import com.ibm.ws.jakarta.transformer.action.ActionType;
-import com.ibm.ws.jakarta.transformer.action.BundleData;
-import com.ibm.ws.jakarta.transformer.action.ClassAction;
 import com.ibm.ws.jakarta.transformer.action.ContainerChanges;
 import com.ibm.ws.jakarta.transformer.action.DirectoryAction;
 import com.ibm.ws.jakarta.transformer.action.JarAction;
-import com.ibm.ws.jakarta.transformer.action.ManifestAction;
-import com.ibm.ws.jakarta.transformer.action.ServiceConfigAction;
 import com.ibm.ws.jakarta.transformer.util.ByteData;
 import com.ibm.ws.jakarta.transformer.util.FileUtils;
 import com.ibm.ws.jakarta.transformer.util.InputStreamData;
@@ -120,14 +112,12 @@ public class DirectoryActionImpl extends ContainerActionImpl implements Director
 				for (String file : files) {
 					File srcFile = new File(inputFile, file);
 					File destFile = new File(outputFile, file);
-System.out.println("inputRelPath: [" + inputRelPath + "]");
 					transformDirectoryTree(inputRelPath, srcFile, destFile);
 				}
 
 			} else {
 
-				Action selectedAction = selectAction(inputRelPath);
-				System.out.println("selectAction: [" + selectedAction.getName() + "]");
+				Action selectedAction = acceptAction(inputRelPath);
 				
 				if ( !select(inputRelPath) || (selectedAction == null) ) {
 
@@ -138,7 +128,6 @@ System.out.println("inputRelPath: [" + inputRelPath + "]");
 					}
 
 				} else {
-					System.out.println("%%%% taking else path");
 					InputStream inStream = new FileInputStream(inputFile);
 					OutputStream outStream = new FileOutputStream(outputFile); 
 
