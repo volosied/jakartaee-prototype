@@ -45,7 +45,7 @@ def addExport() {
 }
 
 task unzipJakarta(type:Copy){
-  dependsOn download
+//   dependsOn download
   mkdir "$buildDir/tmp/" 
   from zipTree("$transformImage/wlp/dev/api/spec/jakarta.servlet-api-5.0.0-M1.jar")
   into "$buildDir/tmp/"   
@@ -86,7 +86,7 @@ String[] bundlesToBeChanged = [  "com.ibm.ws.org.apache.commons.fileupload_1.0.3
                                  "com.ibm.ws.org.apache.jasper.el.3.0_3.0.36.jar" ] 
 
 task deleteJavaxJars() {
-    dependsOn zipJakarta
+    // dependsOn zipJakarta
     doLast{
         bundlesToBeChanged.each { file ->
             delete {
