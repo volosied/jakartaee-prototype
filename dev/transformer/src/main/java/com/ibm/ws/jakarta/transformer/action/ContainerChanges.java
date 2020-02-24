@@ -1,5 +1,6 @@
 package com.ibm.ws.jakarta.transformer.action;
 
+import java.io.PrintStream;
 import java.util.Set;
 
 public interface ContainerChanges extends Changes {
@@ -28,4 +29,6 @@ public interface ContainerChanges extends Changes {
 	void record(Action action);
 	void record(Action action, boolean hasChanges);
 	void record(String name, boolean hasChanges);
+	
+	void displayChanges(PrintStream printStream);
 }

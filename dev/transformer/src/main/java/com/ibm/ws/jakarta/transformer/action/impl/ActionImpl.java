@@ -1,5 +1,6 @@
 package com.ibm.ws.jakarta.transformer.action.impl;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -422,4 +423,9 @@ public abstract class ActionImpl implements Action {
 	@Override
 	public abstract ByteData apply(String inputName, byte[] inputBytes, int inputLength) 
 		throws JakartaTransformException;
+
+	public void apply(File inputFile, File outputFile) throws JakartaTransformException {
+		throw new JakartaTransformException("Not implemented by subclass");
+		
+	}
 }
