@@ -68,7 +68,7 @@ public class CompositeActionImpl extends ActionImpl implements CompositeAction {
 	@Override
 	public ActionImpl acceptAction(String resourceName) {
 		for ( ActionImpl action : getActions() ) {
-			if ( action.select(resourceName) ) {
+			if ( action.accept(resourceName) ) {
 				acceptedAction = action;
 				return action;
 			}

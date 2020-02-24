@@ -104,13 +104,14 @@ public class JarActionImpl extends ContainerActionImpl implements JarAction {
 				verbose("[ %s.%s ] [ %s ] Size [ %s ]\n",
 					getClass().getSimpleName(), "applyZip", inputName, inputLength);
 
-				Action selectedAction = acceptAction(inputName);
+				boolean selected = select(inputName);
+				Action acceptedAction = acceptAction(inputName);
 
-				if ( !select(inputName) || (selectedAction == null) ) {
-					if ( selectedAction == null ) {
+				if ( !selected || (acceptedAction == null) ) {
+					if ( acceptedAction == null ) {
 						recordUnaccepted(inputName);
 					} else {
-						recordUnselected(selectedAction, !ContainerChanges.HAS_CHANGES, inputName);
+						recordUnselected(acceptedAction, !ContainerChanges.HAS_CHANGES, inputName);
 					}
 
 					// TODO: Should more of the entry details be transferred?
@@ -149,13 +150,13 @@ public class JarActionImpl extends ContainerActionImpl implements JarAction {
 						intInputLength = FileUtils.verifyArray(0, inputLength);
 					}
 
-					InputStreamData outputData = selectedAction.apply(inputName, zipInputStream, intInputLength);
+					InputStreamData outputData = acceptedAction.apply(inputName, zipInputStream, intInputLength);
 
-					recordTransform(selectedAction, inputName);
+					recordTransform(acceptedAction, inputName);
 
 					// TODO: Should more of the entry details be transferred?
 
-					ZipEntry outputEntry = new ZipEntry( selectedAction.getChanges().getOutputResourceName() );
+					ZipEntry outputEntry = new ZipEntry( acceptedAction.getChanges().getOutputResourceName() );
 					zipOutputStream.putNextEntry(outputEntry); // throws IOException
 					FileUtils.transfer(outputData.stream, zipOutputStream, buffer); // throws IOException 
 					zipOutputStream.closeEntry(); // throws IOException					
