@@ -31,6 +31,8 @@ import com.ibm.ws.jakarta.transformer.action.ClassAction;
 import com.ibm.ws.jakarta.transformer.action.ClassChanges;
 import com.ibm.ws.jakarta.transformer.action.DirectoryChanges;
 import com.ibm.ws.jakarta.transformer.action.JarChanges;
+import com.ibm.ws.jakarta.transformer.action.JavaAction;
+import com.ibm.ws.jakarta.transformer.action.JavaChanges;
 import com.ibm.ws.jakarta.transformer.action.ManifestAction;
 import com.ibm.ws.jakarta.transformer.action.ManifestChanges;
 import com.ibm.ws.jakarta.transformer.action.ServiceConfigAction;
@@ -39,6 +41,7 @@ import com.ibm.ws.jakarta.transformer.action.impl.ClassActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.InputBufferImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.DirectoryActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.JarActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.JavaActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.LoggerImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ManifestActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.SelectionRuleImpl;
@@ -698,7 +701,10 @@ public class JakartaTransformer {
         	} else if (lowerInputName.endsWith(".ear")) {
         		this.actionType = ActionType.EAR;
         		
-        	} else {
+        	} else if (lowerInputName.endsWith(".java")) {
+                this.actionType = ActionType.JAVA;
+                
+            } else {
         		return false;
         	}
         	
@@ -753,7 +759,12 @@ public class JakartaTransformer {
             if (inputFile.isDirectory()) {
             	transformDirectory(inputFile, outputFile);  // throws JakartaTransformException
             	return;
-            }                   
+            } 
+            
+            if (inputName.toLowerCase().endsWith("java")) {
+                transformJava(inputFile, outputFile);  // throws JakartaTransformException
+                return;
+            }
 
             try ( InputStream inputStream = IO.stream(inputFile) ) {
                 try ( OutputStream outputStream = IO.outputStream(outputFile) ) {
@@ -885,6 +896,27 @@ public class JakartaTransformer {
     		}
         }
         
+        protected void transformJava(File in, File out) throws JakartaTransformException {
+
+
+
+            JavaAction javaAction = new JavaActionImpl(getLogger(),                     
+                                                       getBuffer(), 
+                                                       getSelectionRule(), 
+                                                       getSignatureRule() ); 
+
+            javaAction.apply(in, out);
+
+            if ( javaAction.hasChanges() ) {
+                JavaChanges javaChanges = javaAction.getChanges();
+
+                info( "Java file name [ %s ] [ %s ]\n",
+                    javaChanges.getInputResourceName(),
+                    javaChanges.getOutputResourceName() );
+                info( "Replacements [ %s ]\n", javaChanges.getReplacements() );
+            }
+        }
+        
         //
 
         protected void transformJar(
@@ -947,9 +979,12 @@ public class JakartaTransformer {
         	} else if ( actionType == ActionType.RAR) {
         		transformOther(inputStream, inputLength, outputStream);
         	} else if ( actionType == ActionType.EAR ) {
-        		transformOther(inputStream, inputLength, outputStream);
+                transformOther(inputStream, inputLength, outputStream);
 
-        	} else {
+            } else if ( actionType == ActionType.JAVA ) {
+                transformOther(inputStream, inputLength, outputStream);
+
+            } else {
         		throw new IllegalArgumentException("Unknown transform type [ " + actionType + " ]");
         	}
         }
