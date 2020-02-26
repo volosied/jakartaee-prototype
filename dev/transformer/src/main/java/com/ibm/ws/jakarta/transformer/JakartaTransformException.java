@@ -16,8 +16,4 @@ public class JakartaTransformException extends Exception {
 	public JakartaTransformException(String message, Throwable cause) {
 		super(message, cause);
 	}
-
-    public JakartaTransformException(Exception e) {
-        super(e.getMessage(), e.getCause());
-    }
 }

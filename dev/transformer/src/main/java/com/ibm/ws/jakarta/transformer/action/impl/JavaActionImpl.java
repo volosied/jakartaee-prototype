@@ -153,7 +153,7 @@ public class JavaActionImpl extends ActionImpl implements JavaAction {
                }
 
            } catch (IOException e) {
-               throw new JakartaTransformException(e);
+               throw new JakartaTransformException(e.getMessage(), e.getCause());
            } finally {
                addReplacements(replacements); 
            }
