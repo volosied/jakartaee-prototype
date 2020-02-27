@@ -663,8 +663,19 @@ public class JakartaTransformer {
             outputPath = outputFile.getAbsolutePath();
 
             allowOverwrite = hasOption(AppOption.OVERWRITE);
+                     
+            // Special case.  If input file is a file, and output file is an existing directory.
+            // Then write the output file to the directory, using the default output file name
+            if ( outputFile.exists()) {
+                if (inputFile.isFile() && outputFile.isDirectory()) {
+                    outputName = outputName + "/" + OUTPUT_PREFIX + inputName;
+                    outputFile = new File(outputName);
+                    outputPath = outputFile.getAbsolutePath();
+                }
+            }
 
             if ( outputFile.exists() ) {
+                
             	if ( allowOverwrite ) {
                     info("Output exists and will be overwritten [ %s ]\n", outputPath);
             	} else {
