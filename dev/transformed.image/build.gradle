@@ -6,14 +6,32 @@ apply plugin: 'java'
 ext {
   transformImages  = "$buildDir" + '/transformed'
   transformImage   = "$transformImages" + '/' + project(':source.image').profilePrefix
+  TMP_DIR = "$buildDir/tmp/"
+  ORIGINAL_DIR = TMP_DIR + "original.jakarta.apis"
+  MODIFIED_DIR = TMP_DIR + "modified.jakarta.apis"
 }
 
 configurations {
     jakarta
 }
 
+def bundleDetails = [servlet: 
+                        [
+                            jakarta:    [ name: "jakarta.servlet-api", version: "5.0.0-M1" ], 
+                            javax:      [ name: "com.ibm.websphere.javaee.servlet", version: "4.0"], 
+                            packages:   [["javax/servlet/resources", true ]] // true == rename
+                        ],
+                    jsp: 
+                        [   
+                            jakarta:    [name: "jakarta.servlet.jsp-api", version: "3.0.0-M1"],
+                            javax:      [name: "com.ibm.websphere.javaee.jsp", version: "2.3"], 
+                            packages:   [["javax/servlet/jsp/resources", true], ["javax.servlet.jsp.tagext", false]]
+                        ]
+                    ]
+
 dependencies {
-   jakarta 'jakarta.servlet:jakarta.servlet-api:5.0.0-M1'
+   jakarta group: 'jakarta.servlet', name: bundleDetails.servlet.jakarta.name , version: bundleDetails.servlet.jakarta.version
+   jakarta group: 'jakarta.servlet.jsp', name: 'jakarta.servlet.jsp-api', version: '3.0.0-M1'
 }
 
 task copyImage(type: Copy) {
@@ -26,50 +44,91 @@ task copyImage(type: Copy) {
 
 }
 
+task setup(){
+    println "making directories..."
+    mkdir TMP_DIR
+    mkdir ORIGINAL_DIR
+    mkdir MODIFIED_DIR
+}
+
 task download(type: Copy) {
+    dependsOn setup
+    println "downloading...."
     from configurations.jakarta 
-    into "$transformImage/wlp/dev/api/spec"
+    into ORIGINAL_DIR
 }
 
-def addExport() {
-    def is = new File("build/tmp/META-INF/MANIFEST.MF").newInputStream()
-    Manifest manifest = new Manifest(is);
-    for(Object key : manifest.getMainAttributes().keySet()){
-        if(key.toString().indexOf("Export-Package") == 0){
-            String value =  manifest.getMainAttributes().get(key)
-             manifest.getMainAttributes().put(key, value + ',jakarta.servlet.resources;version="5.0.0"')
-        } 
+// task synchonrize(type: SyncPackage)
+//      println "syncronzied"
+//      mkdir MODIFIED_DIR
+//      mkdir TMP_DIR + bundleDetails.servlet.jakarta.name
+//      println ORIGINAL_DIR
+//      jakarta = bundleDetails.servlet.jakarta
+//      javax = bundleDetails.servlet.javax
+//      tmpDir = TMP_DIR + bundleDetails.servlet.jakarta.name
+//      jakartaDir = ORIGINAL_DIR
+//      javaxDir = project(':source.image').profileImage+"/wlp/dev/api/spec/"
+//      packageList = bundleDetails.servlet.packages;
+// }
+
+task update() {
+    // doFirst {
+        bundleDetails.each { api, info -> 
+            //Creating tasks to zip each jakarta project in the tmp folder 
+            // println "zip-$api"(type: SyncPackage)
+            task "sync-$api"(type: SyncPackage) {
+                        dependsOn download
+                        println "syncronzied"
+                        mkdir TMP_DIR + info.jakarta.name
+                        println ORIGINAL_DIR
+                        jakarta = info.jakarta
+                        javax = info.javax
+                        tmpDir = TMP_DIR + info.jakarta.name
+                        jakartaDir = ORIGINAL_DIR
+                        javaxDir = project(':source.image').profileImage+"/wlp/dev/api/spec/"
+                        packageList = info.packages;
+            }
+
+            task "zip-$api"(type: Zip) { //each gradle zip task only has 1 output, thus we need to crate multiple tasks 
+                    dependsOn "sync-$api"
+                    println "zipping..."
+                    from "$buildDir/tmp/$info.jakarta.name"
+                    destinationDir file("$transformImage/wlp/dev/api/spec/")
+                    archiveFileName = MODIFIED_DIR + "/" + fileTree("$buildDir/tmp/original.jakarta.apis/").matching({ include "*" + info.jakarta.name +"*" }).getSingleFile().getName()
+            }   
+
+        //  "zip-$api".execute() 
+
+        // }
     }
-    OutputStream os = new FileOutputStream("build/tmp/META-INF/MANIFEST.MF");
-    manifest.write(os)
+
+   
 }
 
-task unzipJakarta(type:Copy){
-//   dependsOn download
-  mkdir "$buildDir/tmp/" 
-  from zipTree("$transformImage/wlp/dev/api/spec/jakarta.servlet-api-5.0.0-M1.jar")
-  into "$buildDir/tmp/"   
-}
-
-task copyResource(type: Copy) {
-  dependsOn unzipJakarta
-  def subDir = "javax/servlet/resources/"
-  from zipTree("$transformImage/wlp/dev/api/spec/com.ibm.websphere.javaee.servlet.4.0_1.0.36.jar").matching {include "$subDir/**"}
-  into "$buildDir/tmp/"                        
-  eachFile { fcp ->
-    fcp.path = fcp.path.replaceFirst("javax", 'jakarta')
-  }
-  includeEmptyDirs false
-  doLast {
-       addExport()
-  }
-}
-
-task zipJakarta(type: Zip) {
-    dependsOn copyResource
-    archiveFileName = "jakarta.servlet-api-5.0.0-M1.jar"
-    from "$buildDir/tmp"
-    destinationDirectory = file("$transformImage/wlp/dev/api/spec/")
+task convertJakarta(){
+    println "converting....."
+    println MODIFIED_DIR
+    println  fileTree(MODIFIED_DIR).getFiles()
+    fileTree(MODIFIED_DIR).getFiles().each { file ->
+    println file
+    doLast {
+        println file
+        javaexec {
+                    classpath = project(':transformer').sourceSets.main.runtimeClasspath
+                    main = "com.ibm.ws.jakarta.transformer.JakartaTransformer";
+                    args = [  "-j",
+                            "$file",
+                            "-o",
+                            "$transformImage/wlp/dev/api/spec/"+file.getName(),
+                            "-tr",
+                            "$project.projectDir/rules/jakarta-renames.properties",
+                            "-ts",
+                            "$project.projectDir/rules/jakarta-selections.properties",
+                            "-tv",
+                            "$project.projectDir/rules/jakarta-versions.properties"] 
+                }
+         }
+    }
 }
 
 String[] bundlesToBeChanged = [  "com.ibm.ws.org.apache.commons.fileupload_1.0.36.jar",
@@ -85,7 +144,9 @@ String[] bundlesToBeChanged = [  "com.ibm.ws.org.apache.commons.fileupload_1.0.3
                                  "com.ibm.ws.jsp_1.0.36.jar",
                                  "com.ibm.ws.org.apache.jasper.el.3.0_3.0.36.jar" ] 
 
-task deleteJavaxJars() {
+// task to be removed soon
+// bundle ids need to be modified, so javax & jakarta bundles can co-exist
+task deleteIBMJars() {
     // dependsOn zipJakarta
     doLast{
         bundlesToBeChanged.each { file ->
@@ -97,12 +158,14 @@ task deleteJavaxJars() {
     }
 }
 
+//task to be done by transfomer tool 
 task copyManifests(type: Copy){
     from "$project.projectDir/feature-manifests"
     include "*.mf"
     into "$transformImage/wlp/lib/features"
 }
 
+//permission issues? may need to be done manually 
 task copyTestApp(type: Copy){
     from "$project.projectDir/test-apps"
     include "*.war"
@@ -112,8 +175,9 @@ task copyTestApp(type: Copy){
     into "$transformImage/wlp/lib/usr/servers/defaultServer/dropins"
 }
 
+
 task transformImage() {
-    dependsOn deleteJavaxJars
+    dependsOn deleteIBMJars
     dependsOn copyManifests
     bundlesToBeChanged.each { file ->
         doLast {
@@ -132,7 +196,6 @@ task transformImage() {
                           "$project.projectDir/rules/jakarta-versions.properties"] 
             }
         }
-
     }
     doLast {
         println "Transformation Complete!: $project.projectDir"
@@ -148,4 +211,89 @@ task serverStart(type:Exec){
 task serverStop(type:Exec){
     workingDir "$transformImage/wlp/bin"
     commandLine './server', 'stop'
+}
+
+// Custom Task to Syncronize Packages between the IBM API and the Jakarta API Jars
+class SyncPackage extends DefaultTask {
+
+    def jakarta;     // from bundleDetails 
+    def javax;       // from bundleDetails
+
+    def jakartaDir;
+    def javaxDir;
+
+    def tmpDir;      // location of unzip files for each api (tmp/servlet, tmp/jsp, etc) 
+    def packageList; // list of packages to be moved from IBM Jar 
+
+    private void addExport() {
+        def is = new File("$tmpDir/META-INF/MANIFEST.MF").newInputStream()
+        Manifest manifest = new Manifest(is);
+        for(Object key : manifest.getMainAttributes().keySet()){
+            if(key.toString().indexOf("Export-Package") == 0){
+                String value =  manifest.getMainAttributes().get(key)
+                packageList.each {
+                    def name = it[0].replace('/', '.')
+                    println name
+                    manifest.getMainAttributes().put(key, value + ",$name;version=\"$jakarta.version\"")
+                }
+            } 
+        }
+        OutputStream os = new FileOutputStream("$tmpDir/META-INF/MANIFEST.MF");
+        manifest.write(os)
+    }
+
+    public File findFile(path, base){
+        print path + " " +  base
+        //include uses ANT style pattern matching 
+        def f = project.fileTree(path).matching({ include "*"+base.name + "?" + base.version +"*" })
+        println(f)
+        return f.getSingleFile()
+    }
+
+    private void unzip(){
+         project.copy {
+            from project.zipTree(findFile(jakartaDir, jakarta))
+            into  tmpDir
+        }
+    }
+
+    private void copyPackages(){
+          packageList.each { item ->
+            def name = item[0]
+            println name 
+            def rename = item[1]
+            project.copy {
+                    from project.zipTree(findFile(javaxDir, javax)).matching {include "$name/**"}
+                    eachFile { fcp ->
+                    println fcp
+                        if(rename) {
+                            fcp.path = fcp.path.replaceFirst("javax", 'jakarta')
+                        }
+                    }
+                    into tmpDir                        
+                    includeEmptyDirs false
+          }
+        }
+    }
+
+    // Cases where version is a M1, RC, etc
+    private void trimVersion(){
+    //     idx = jakarta.version.indexOf('-');
+    //    if(idx > -1){
+    //        jakarta.version  = jakarta.version.subString(0, idx);
+    //    }
+    }
+
+    @TaskAction
+    void sync() {
+        trimVersion()
+        unzip()
+        println "unzip"
+        copyPackages()
+        println "copy"
+        addExport()
+        println "export"
+
+        //Zip & Transform are to be done in another gradle task 
+    }
 }
