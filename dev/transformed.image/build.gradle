@@ -26,12 +26,19 @@ def bundleDetails = [servlet:
                             jakarta:    [name: "jakarta.servlet.jsp-api", version: "3.0.0-M1"],
                             javax:      [name: "com.ibm.websphere.javaee.jsp", version: "2.3"], 
                             packages:   [["javax/servlet/jsp/resources", true], ["javax.servlet.jsp.tagext", false]]
+                        ],
+                    el: 
+                        [   
+                            jakarta:    [name: "jakarta.el-api", version: "4.0.0-RC1"],
+                            javax:      [name: "com.ibm.websphere.javaee.el", version: "3.0"], 
+                            packages:   [["com/ibm/wsspi/el/", true]]
                         ]
                     ]
 
 dependencies {
    jakarta group: 'jakarta.servlet', name: bundleDetails.servlet.jakarta.name , version: bundleDetails.servlet.jakarta.version
    jakarta group: 'jakarta.servlet.jsp', name: 'jakarta.servlet.jsp-api', version: '3.0.0-M1'
+   jakarta group: 'jakarta.el', name: 'jakarta.el-api', version: '4.0.0-RC1'
 }
 
 task copyImage(type: Copy) {
@@ -44,71 +51,67 @@ task copyImage(type: Copy) {
 
 }
 
-task setup(){
-    println "making directories..."
-    mkdir TMP_DIR
-    mkdir ORIGINAL_DIR
-    mkdir MODIFIED_DIR
+task setup() {
+    doLast {
+        println "making directories..."
+        mkdir TMP_DIR
+        mkdir ORIGINAL_DIR
+        mkdir MODIFIED_DIR
+    }
 }
 
-task download(type: Copy) {
+task download() {
     dependsOn setup
-    println "downloading...."
-    from configurations.jakarta 
-    into ORIGINAL_DIR
+    doLast {
+        println "downloading...."
+        copy {
+            from configurations.jakarta 
+            into ORIGINAL_DIR
+        }
+    }
 }
-
-// task synchonrize(type: SyncPackage)
-//      println "syncronzied"
-//      mkdir MODIFIED_DIR
-//      mkdir TMP_DIR + bundleDetails.servlet.jakarta.name
-//      println ORIGINAL_DIR
-//      jakarta = bundleDetails.servlet.jakarta
-//      javax = bundleDetails.servlet.javax
-//      tmpDir = TMP_DIR + bundleDetails.servlet.jakarta.name
-//      jakartaDir = ORIGINAL_DIR
-//      javaxDir = project(':source.image').profileImage+"/wlp/dev/api/spec/"
-//      packageList = bundleDetails.servlet.packages;
-// }
 
 task update() {
-    // doFirst {
+    dependsOn download
+    // doLast {
         bundleDetails.each { api, info -> 
-            //Creating tasks to zip each jakarta project in the tmp folder 
-            // println "zip-$api"(type: SyncPackage)
-            task "sync-$api"(type: SyncPackage) {
+            mkdir TMP_DIR + info.jakarta.name
+           // Creating tasks to zip each jakarta project in the tmp folder 
+            println "zip-$api"
+            def sync = tasks.register("sync-$api", SyncPackage) {
                         dependsOn download
-                        println "syncronzied"
-                        mkdir TMP_DIR + info.jakarta.name
-                        println ORIGINAL_DIR
+                        // mkdir TMP_DIR + info.jakarta.name
                         jakarta = info.jakarta
                         javax = info.javax
                         tmpDir = TMP_DIR + info.jakarta.name
                         jakartaDir = ORIGINAL_DIR
                         javaxDir = project(':source.image').profileImage+"/wlp/dev/api/spec/"
                         packageList = info.packages;
+                        output =  MODIFIED_DIR;
+
             }
 
-            task "zip-$api"(type: Zip) { //each gradle zip task only has 1 output, thus we need to crate multiple tasks 
-                    dependsOn "sync-$api"
-                    println "zipping..."
-                    from "$buildDir/tmp/$info.jakarta.name"
-                    destinationDir file("$transformImage/wlp/dev/api/spec/")
-                    archiveFileName = MODIFIED_DIR + "/" + fileTree("$buildDir/tmp/original.jakarta.apis/").matching({ include "*" + info.jakarta.name +"*" }).getSingleFile().getName()
-            }   
+            // def zip = tasks.register("zip-$api", Zip) { //each gradle zip task only has 1 output, thus we need to crate multiple tasks 
+            //         dependsOn sync
+            //         from "$buildDir/tmp/$info.jakarta.name"
+            //         destinationDir file("$transformImage/wlp/dev/api/spec/")
+            //         archiveFileName = MODIFIED_DIR + "/" + fileTree("$buildDir/tmp/original.jakarta.apis/").matching({ include "*" + info.jakarta.name +"*" }).getSingleFile().getName()
+            //  } 
 
-        //  "zip-$api".execute() 
+            //  zip.execute()
 
         // }
     }
-
-   
 }
 
 task convertJakarta(){
-    println "converting....."
-    println MODIFIED_DIR
-    println  fileTree(MODIFIED_DIR).getFiles()
+    // dependsOn copyImage
+    dependsOn update
+    dependsOn { 
+        tasks.findAll { task -> 
+            task.name.startsWith("sync-")
+         }
+    }
     fileTree(MODIFIED_DIR).getFiles().each { file ->
     println file
     doLast {
@@ -225,6 +228,8 @@ class SyncPackage extends DefaultTask {
     def tmpDir;      // location of unzip files for each api (tmp/servlet, tmp/jsp, etc) 
     def packageList; // list of packages to be moved from IBM Jar 
 
+    def output; 
+
     private void addExport() {
         def is = new File("$tmpDir/META-INF/MANIFEST.MF").newInputStream()
         Manifest manifest = new Manifest(is);
@@ -233,7 +238,6 @@ class SyncPackage extends DefaultTask {
                 String value =  manifest.getMainAttributes().get(key)
                 packageList.each {
                     def name = it[0].replace('/', '.')
-                    println name
                     manifest.getMainAttributes().put(key, value + ",$name;version=\"$jakarta.version\"")
                 }
             } 
@@ -243,10 +247,8 @@ class SyncPackage extends DefaultTask {
     }
 
     public File findFile(path, base){
-        print path + " " +  base
         //include uses ANT style pattern matching 
         def f = project.fileTree(path).matching({ include "*"+base.name + "?" + base.version +"*" })
-        println(f)
         return f.getSingleFile()
     }
 
@@ -265,7 +267,6 @@ class SyncPackage extends DefaultTask {
             project.copy {
                     from project.zipTree(findFile(javaxDir, javax)).matching {include "$name/**"}
                     eachFile { fcp ->
-                    println fcp
                         if(rename) {
                             fcp.path = fcp.path.replaceFirst("javax", 'jakarta')
                         }
@@ -274,6 +275,15 @@ class SyncPackage extends DefaultTask {
                     includeEmptyDirs false
           }
         }
+    }
+
+    private void zip(){
+        ant.zip(destfile: output + "/com.ibm.websphere." + jakarta.name + "." + jakarta.version + ".jar" ) {
+        fileset(dir: tmpDir) {
+            // include(name: '**.xml')
+            // exclude(name: '**.java')
+        }
+    }
     }
 
     // Cases where version is a M1, RC, etc
@@ -293,6 +303,8 @@ class SyncPackage extends DefaultTask {
         println "copy"
         addExport()
         println "export"
+        zip()
+        println "zip"
 
         //Zip & Transform are to be done in another gradle task 
     }
