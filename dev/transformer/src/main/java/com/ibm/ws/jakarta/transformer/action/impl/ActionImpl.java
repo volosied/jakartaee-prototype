@@ -509,20 +509,38 @@ public abstract class ActionImpl implements Action {
      * @param keyLen
      * @return
      */
-    protected boolean isTrueMatch(String text, int textLimit, int matchStart, int keyLen ) {
-        
-        //  Verify the match is not part of a longer package name.              
+    protected boolean isTruePackageMatch(String text, int matchStart, int keyLen ) {
+
+        int textLength = text.length();
+              
         if ( matchStart > 0 ) {
             char charBeforeMatch = text.charAt(matchStart - 1);
             if ( Character.isJavaIdentifierPart(charBeforeMatch) || (charBeforeMatch == '.')) { 
                 return false;
             }
         }
-        int matchEnd = matchStart + keyLen;
-        if ( textLimit > matchEnd ) {
+        
+        int matchEnd = matchStart + keyLen;        
+        if ( textLength > matchEnd ) {
+
             char charAfterMatch = text.charAt(matchEnd);
-            if ( Character.isJavaIdentifierPart(charAfterMatch) || (charAfterMatch == '.') ) {
+                        
+            // Check the next character can also be part of a package name then 
+            // we are looking at a larger package name, and thus not a match.
+            if ( Character.isJavaIdentifierPart(charAfterMatch) ) {
                 return false;
+            }
+            
+            // If the next char is dot, check the character after the dot.  An upper case letter indicates the start of a 
+            // class name and thus the end of the package name which indicates a match.
+            // If lower case, then it indicates we are looking at a larger package name, and thus not a match.
+            if (charAfterMatch == '.') {
+                if ( textLength > (matchEnd+1) )  {
+                    char charAfterDot = text.charAt(matchEnd+1);
+                    if ( Character.isLowerCase(charAfterDot) ) {
+                        return false;
+                    }
+                }
             }
         }
         return true;
