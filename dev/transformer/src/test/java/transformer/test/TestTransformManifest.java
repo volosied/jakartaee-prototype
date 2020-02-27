@@ -438,8 +438,8 @@ public class TestTransformManifest {
 			super(logger, buffer, selectionRule, signatureRule, isManifest);
 		}
 
-		public boolean callIsTrueMatch(String text, int textLimit, int matchStart, int keyLen ) {
-			return isTrueMatch(text, textLimit, matchStart, keyLen );
+		public boolean callIsTrueMatch(String text, int matchStart, int keyLen ) {
+			return isTruePackageMatch(text, matchStart, keyLen );
 		}
 
 		public String callReplacePackageVersion(String embeddingText, String newPackageVersion) {
@@ -510,77 +510,77 @@ public class TestTransformManifest {
 		
 	    matchStart = 0;  // Test 1
 	    keyLen = 3;
-		result = manifestAction.callIsTrueMatch("abc", 3, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch("abc", matchStart, keyLen);
 		assertTrue(result, "(Package name == text) is MATCH");    
 		
 	    matchStart = 1;  // Test 2 "abc"   Trailing period   
 	    keyLen = 3;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertFalse(result, "('.' after key) is NO MATCH");
 	
 	    matchStart = 1; //  Test 3 "abc.defgh"   Trailing comma 
 	    keyLen = 9;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertTrue(result, "(',' after key) is MATCH");	
 		
 	    matchStart = 11; //  Test 4 "ijklm"   Trailing semicolon 
 	    keyLen = 5;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertTrue(result, "(';' after key) is MATCH");
 		
 	    matchStart = 17; //  Test 5 "nopqrs"   Trailing $ 
 	    keyLen = 6;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertFalse(result, "('$' after key) is MATCH");
 		
 	    matchStart = 28; //  Test 6 "wxyz"   Trailing = 
 	    keyLen = 4;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertTrue(result, "('=' after key) is MATCH");
 		
 	    matchStart = 17; //  Test 7 "nopqrs$tuv"   Trailing ' ' 
 	    keyLen = 10;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertTrue(result, "(' ' after key) is MATCH");
 		
 	    matchStart = 1; //  Test 8 "abc.defgh"   Prior char "="
 	    keyLen = 9;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertTrue(result, "('=' before key) is MATCH");
 				
 	    matchStart = 5; //  Test 9 "defgh"   Prior char "."
 	    keyLen = 5;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertFalse(result, "('.' before key) is NO MATCH");
 		
 	    matchStart = 11; //  Test 10 "ijklm"   Prior char ","
 	    keyLen = 5;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertTrue(result, "(',' before key) is MATCH");
 		
 	    matchStart = 17; //  Test 11 "nopqrs$tuv"   Prior char ";"
 	    keyLen = 10;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertTrue(result, "(';' before key) is MATCH");
 		
 	    matchStart = 24; //  Test 12 "tuv"   Prior char "$"
 	    keyLen = 3;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertFalse(result, "('$' before key) is NO MATCH");
 				
 	    matchStart = 28; //  Test 13 "wxyz"   Prior char " "
 	    keyLen = 4;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertTrue(result, "(' ' before key) is MATCH");
 			
 	    matchStart = 17; //  Test 14 "no"   char after is a valid package char
 	    keyLen = 2;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertFalse(result, "(valid package character after key) is NO MATCH");
 		
 	    matchStart = 8; //  Test 15 "gh"   char before is a valid package char
 	    keyLen = 2;
-		result = manifestAction.callIsTrueMatch(TEXT, textLen, matchStart, keyLen);
+		result = manifestAction.callIsTrueMatch(TEXT, matchStart, keyLen);
 		assertFalse(result, "(valid package character before key) is NO MATCH");
 	}
 	

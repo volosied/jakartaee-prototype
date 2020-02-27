@@ -344,7 +344,7 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 					break;
 				}
 
-				if ( !isTrueMatch(text, textLimit, matchStart, keyLen) ) {
+				if ( !isTruePackageMatch(text, matchStart, keyLen) ) {
 					lastMatchEnd = matchStart + keyLen;
 					continue;
 				}

@@ -87,9 +87,8 @@ public class JavaActionImpl extends ActionImpl implements JavaAction {
             int keyLen = key.length();
 
             //System.out.println("replacePackages: Next target [ " + key + " ]");
-
             int textLimit = text.length() - keyLen;
-
+            
             int lastMatchEnd = 0;
             while ( lastMatchEnd <= textLimit ) {
                 int matchStart = text.indexOf(key, lastMatchEnd);
@@ -97,7 +96,7 @@ public class JavaActionImpl extends ActionImpl implements JavaAction {
                     break;
                 }
 
-                if ( !isTrueMatch(text, textLimit, matchStart, keyLen) ) {
+                if ( !isTruePackageMatch(text, matchStart, keyLen) ) {
                     lastMatchEnd = matchStart + keyLen;
                     continue;
                 }
