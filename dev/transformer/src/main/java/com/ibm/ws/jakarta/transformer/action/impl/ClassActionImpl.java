@@ -160,8 +160,8 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 	//
 
 	@Override
-	public boolean accept(String resourceName) {
-		return resourceName.endsWith(".class");
+	public String getAcceptExtension() {
+		return ".class";
 	}
 
 	//
@@ -213,11 +213,10 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 
 		// Transform the class declaration ...
 
-		String outputName;
-
 		String inputClassName = classBuilder.this_class();
 		String outputClassName = transformBinaryType(inputClassName);
 
+		String outputName;
 		if ( outputClassName != null ) {
 			classBuilder.this_class(outputClassName);
 			outputName = asResourceName(outputClassName);
@@ -334,6 +333,7 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 
 		byte[] outputBytes = outputClassData.toByteArray();
 		log("  Class size: %s: %s -> %s\n", inputName, inputBytes.length, outputBytes.length);
+		
 		return new ByteData(outputName, outputBytes, 0, outputBytes.length);
 	}
 

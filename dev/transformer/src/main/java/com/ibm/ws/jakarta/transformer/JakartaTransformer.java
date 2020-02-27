@@ -1,11 +1,8 @@
 package com.ibm.ws.jakarta.transformer;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.net.URI;
@@ -27,23 +24,16 @@ import org.apache.commons.cli.ParseException;
 
 import com.ibm.ws.jakarta.transformer.action.ActionType;
 import com.ibm.ws.jakarta.transformer.action.BundleData;
-import com.ibm.ws.jakarta.transformer.action.ClassAction;
-import com.ibm.ws.jakarta.transformer.action.ClassChanges;
-import com.ibm.ws.jakarta.transformer.action.DirectoryChanges;
-import com.ibm.ws.jakarta.transformer.action.JarChanges;
-import com.ibm.ws.jakarta.transformer.action.JavaAction;
-import com.ibm.ws.jakarta.transformer.action.JavaChanges;
-import com.ibm.ws.jakarta.transformer.action.ManifestAction;
-import com.ibm.ws.jakarta.transformer.action.ManifestChanges;
-import com.ibm.ws.jakarta.transformer.action.ServiceConfigAction;
-import com.ibm.ws.jakarta.transformer.action.ServiceConfigChanges;
+import com.ibm.ws.jakarta.transformer.action.impl.ActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ClassActionImpl;
-import com.ibm.ws.jakarta.transformer.action.impl.InputBufferImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.CompositeActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.DirectoryActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.InputBufferImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.JarActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.JavaActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.LoggerImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ManifestActionImpl;
+import com.ibm.ws.jakarta.transformer.action.impl.NullActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.SelectionRuleImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.ServiceConfigActionImpl;
 import com.ibm.ws.jakarta.transformer.action.impl.SignatureRuleImpl;
@@ -58,6 +48,7 @@ public class JakartaTransformer {
     public static final int PARSE_ERROR_RC = 1;
     public static final int RULES_ERROR_RC = 2;
     public static final int TRANSFORM_ERROR_RC = 3;
+    public static final int FILE_TYPE_ERROR_RC = 4;
 
     public static void main(String[] args) throws Exception {
         JakartaTransformer jTrans =
@@ -207,33 +198,13 @@ public class JakartaTransformer {
         INVERT("i", "invert", "Invert transformation rules",
            	!OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
 
-//        CLASS("c", "class", "Input class",
-//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-//        MANIFEST("m", "manifest", "Input manifest",
-//            OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-//        FEATURE("f", "feature", "Input feature manifest",
-//            OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-//        SERVICE_CONFIG("s", "service config", "Input service configuration",
-//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-//        XML("x", "xml", "Input XML",
-//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-
-//        ZIP  ("z", "zip",   "Input zip archive",
-//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-//        JAR  ("j", "jar",   "Input java archive",
-//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-//        WAR  ("w", "war",   "Input web application archive",
-//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-//        RAR  ("r", "rar",   "Input resource archive",
-//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-//        EAR  ("e", "ear",   "Input enterprise application archive",
-//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
-//
-//        OUTPUT("o", "output", "Output file",
-//        	OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+        FILE_TYPE("t", "type", "Input file type",
+            OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
+        OVERWRITE("o", "overwrite", "Overwrite",
+            !OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP),
 
     	DRYRUN("d", "dryrun", "Dry run",
-            !OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP);
+                !OptionSettings.HAS_ARG, !OptionSettings.IS_REQUIRED, OptionSettings.NO_GROUP);
 
         private AppOption(
             String shortTag, String longTag, String description, boolean hasArg,
@@ -355,10 +326,10 @@ public class JakartaTransformer {
      * and is required.
      */
     protected String getInputFileName() {
-    	String[] args = parsedArgs.getArgs();
-    	if ( args != null ) {
-        	if (args.length > 0) {
-        		return FileUtils.normalize(args[0]);
+    	String[] useArgs = parsedArgs.getArgs();
+    	if ( useArgs != null ) {
+        	if (useArgs.length > 0) {
+        		return useArgs[0];
         	} 
     	}
     	return null;
@@ -370,23 +341,13 @@ public class JakartaTransformer {
      * is created based on the input file name.
      */
     protected String getOutputFileName() {
-        String[] args = parsedArgs.getArgs();
-        if ( args != null ) {
-            if (args.length > 1) {
-                return FileUtils.normalize(args[1]);
-            } 
+        String[] useArgs = parsedArgs.getArgs();
+        if ( useArgs != null ) {
+            if (useArgs.length > 1) {
+            	return useArgs[1];
+            }
         }
-
-        info("Output file not specified.\n");
-
-        final String OUTPUT_PREFIX = "output_";
-        String inputFileName = getInputFileName();
-        int indexOfLastSlash = inputFileName.lastIndexOf('/');
-        if (indexOfLastSlash == -1 ) {
-            return OUTPUT_PREFIX + inputFileName; 
-        } else {
-            return inputFileName.substring(0, indexOfLastSlash+1) + OUTPUT_PREFIX + inputFileName.substring(indexOfLastSlash+1);
-        }
+        return null;
     }
     
     protected boolean hasOption(AppOption option) {
@@ -414,15 +375,21 @@ public class JakartaTransformer {
 
             helpFormatter.printHelp(
                 helpWriter,
-                HelpFormatter.DEFAULT_WIDTH,
-                JakartaTransformer.class.getName() + " [ options ]", // Command line syntax
-                "\nOptions:", // Header
+                HelpFormatter.DEFAULT_WIDTH + 5,
+                JakartaTransformer.class.getName() + " input [ output ] [ options ]", // Command line syntax
+                "Options:", // Header
                 getAppOptions(),
                 HelpFormatter.DEFAULT_LEFT_PAD, HelpFormatter.DEFAULT_DESC_PAD,
                 "\n", // Footer
                 !AUTO_USAGE);
 
+            helpWriter.println("Actions:");
+            for ( ActionType actionType : ActionType.values() ) {
+            	helpWriter.println("  [ " + actionType.name() + " ]");
+            }
+
             helpWriter.flush();
+
         }
     }
 
@@ -433,19 +400,19 @@ public class JakartaTransformer {
     	URL rulesUrl;
         String rulesReference = getOptionValue(ruleOption);
         if ( rulesReference != null ) {
-            info("Using external [ " + ruleOption + " ]: [ " + rulesReference + " ]\n");
+            info("Using external [ %s ]: [ %s ]\n", ruleOption, rulesReference);
             URI currentDirectoryUri = IO.work.toURI();
             rulesUrl = URIUtil.resolve(currentDirectoryUri, rulesReference).toURL();
-            info("External [ " + ruleOption + " ] URL [ " + rulesUrl + " ]\n");
+            info("External [ %s ] URL [ %s ]\n", ruleOption, rulesUrl);
         } else {
             rulesReference = defaultReference;
-            info("Using internal [ " + ruleOption + " ]: [ " + rulesReference + " ]\n");
+            info("Using internal [ %s ]: [ %s ]\n", ruleOption, rulesReference);
             rulesUrl = getClass().getResource(rulesReference);
             if ( rulesUrl == null ) {
-        		info("Default [ " + AppOption.RULES_SELECTIONS + " ] were not found [ " + rulesReference + " ]");
+        		info("Default [ %s ] were not found [ %s ]", AppOption.RULES_SELECTIONS, rulesReference);
         		return null;
             } else {
-                info("Default [ " + ruleOption + " ] URL [ " + rulesUrl + " ]\n");
+                info("Default [ %s ] URL [ %s ]\n", ruleOption, rulesUrl);
             }
         }
 
@@ -468,16 +435,18 @@ public class JakartaTransformer {
     	public Map<String, String> packageVersions;
     	public Map<String, BundleData> bundleUpdates;
 
-    	public ActionType actionType;
+    	public CompositeActionImpl rootAction;
+    	public ActionImpl acceptedAction;
 
     	public String inputName;
-    	public String outputName;
-
-        public File inputFile;
         public String inputPath;
-        
-        public File outputFile;
+        public File inputFile;
+
+        public boolean allowOverwrite;
+
+        public String outputName;
         public String outputPath;
+        public File outputFile;
 
     	protected void setLogging() {
             if ( hasOption(AppOption.TERSE) ) {
@@ -526,7 +495,7 @@ public class JakartaTransformer {
         	if ( selectionProperties != null ) {
         		JakartaTransformProperties.setSelections(includes, excludes, selectionProperties);
         	} else {
-        		info("All resources will be selected");
+        		info("All resources will be selected\n");
         	}
 
         	if ( renameProperties != null ) {
@@ -536,21 +505,21 @@ public class JakartaTransformer {
         		}
         		packageRenames = renames;
         	} else {
-        		info("No package renames are available");
+        		info("No package renames are available\n");
         		packageRenames = null;
         	}
 
         	if ( versionProperties != null ) {
         		packageVersions = JakartaTransformProperties.getPackageVersions(versionProperties);
         	} else {
-        		info("Package versions will not be updated");
+        		info("Package versions will not be updated\n");
         	}
 
         	if ( updateProperties != null ) {
         		bundleUpdates = JakartaTransformProperties.getBundleUpdates(updateProperties);
         		// throws IllegalArgumentException
         	} else {
-        		info("Bundle identities will not be updated");
+        		info("Bundle identities will not be updated\n");
         	}
         	
         	return ( packageRenames != null );
@@ -647,346 +616,156 @@ public class JakartaTransformer {
     	}
 
         protected boolean setInput() {
-        	
-        	inputName = getInputFileName();
-            if ( inputName == null ) {
+        	String useInputName = getInputFileName();
+            if ( useInputName == null ) {
                 error("No input file was specified\n");
                 return false;
             }
-        	
+
+            inputName = FileUtils.normalize(useInputName);
             inputFile = new File(inputName);
+            inputPath = inputFile.getAbsolutePath();
+
             if ( !inputFile.exists() ) {
-                error("Input does not exist [ " + inputFile.getAbsolutePath() + " ]\n");
+                error("Input does not exist [ %s ] [ %s ]\n", inputName, inputPath);
                 return false;
             }
-            
-            inputPath = inputFile.getAbsolutePath();
-            info("Input path [ %s ]\n", inputPath);
-            
-        	
-        	String lowerInputName = inputName.toLowerCase();
-        	
-        	if (inputFile.isDirectory()) {
-        		this.actionType = ActionType.DIRECTORY;
-        		
-        	} else if (lowerInputName.endsWith(".class")) {
-        		this.actionType = ActionType.CLASS;
-        		
-        	} else if (lowerInputName.endsWith(".mf")) {
-        		
-        	    if (isFeatureManifest(inputName)) {
-        		   this.actionType = ActionType.FEATURE;
-        	    } else {
-        		   this.actionType = ActionType.MANIFEST;
-        	    }
-        		
-        	} else if (inputName.contains("META-INF/services/")) { // case sensitive
-        		this.actionType = ActionType.SERVICE_CONFIG;
-        		
-        	} else if (lowerInputName.endsWith(".xml")) {
-        		this.actionType = ActionType.XML;
-        		
-        	} else if (lowerInputName.endsWith(".zip")) {
-        		this.actionType = ActionType.ZIP;
-        		
-        	} else if (lowerInputName.endsWith(".jar")) {
-        		this.actionType = ActionType.JAR;
-        		
-        	} else if (lowerInputName.endsWith(".war")) {
-        		this.actionType = ActionType.WAR;
-        		
-        	} else if (lowerInputName.endsWith(".rar")) {
-        		this.actionType = ActionType.RAR;
-        		
-        	} else if (lowerInputName.endsWith(".ear")) {
-        		this.actionType = ActionType.EAR;
-        		
-        	} else if (lowerInputName.endsWith(".java")) {
-                this.actionType = ActionType.JAVA;
-                
-            } else {
-        		return false;
-        	}
-        	
-            info("Input %s [ %s ]\n", this.actionType, this.inputName);
 
+            info("Input     [ %s ]\n", inputName);
+            info("          [ %s ]\n", inputPath);
             return true;
         }
-        
-        /**
-         * Given a MANIFEST.MF file, if it has a line length greater than 32, then assume 
-         * it is a feature manifest.
-         */
-        private boolean isFeatureManifest(String manifestFileName) {
-            
-            File f = new File(manifestFileName);
-            
-            try ( BufferedReader bufferedReader = new BufferedReader(new FileReader(f) ) ) {
 
-                String line;
-
-                while ((line = bufferedReader.readLine()) != null) {
-                    if (line.length() > 72) {
-                        return true;
-                    }
-                }
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            } 
-            return false;
-        }
+        public static final String OUTPUT_PREFIX = "output_";
 
         protected boolean setOutput() {
+        	String useOutputName = getOutputFileName();
 
-            outputName = getOutputFileName();
+        	if ( useOutputName != null ) {
+        		useOutputName = FileUtils.normalize(useOutputName);
+        	} else {
+        		info("Output file not specified.\n");
+
+        		int indexOfLastSlash = inputName.lastIndexOf('/');
+        		if ( indexOfLastSlash == -1 ) {
+        			useOutputName =
+        				OUTPUT_PREFIX + inputName;
+
+        		} else {
+        			useOutputName =
+        				inputName.substring(0, indexOfLastSlash+1) +
+        				OUTPUT_PREFIX +
+        				inputName.substring(indexOfLastSlash+1);
+        		}
+        	}
+        	outputName = useOutputName;
             outputFile = new File(outputName);
             outputPath = outputFile.getAbsolutePath();
 
-            // TODO:  Create an option to override this?  
+            allowOverwrite = hasOption(AppOption.OVERWRITE);
+
             if ( outputFile.exists() ) {
-                error("Output already exists [ " + outputFile.getAbsolutePath() + " ]\n");
-                return false;
+            	if ( allowOverwrite ) {
+                    info("Output exists and will be overwritten [ %s ]\n", outputPath);
+            	} else {
+            		error("Output already exists [ %s ]\n", outputPath);
+            		return false;
+            	}
+            } else {
+            	if ( allowOverwrite ) {
+                    info("Overwritten specified, but output does not exist");
+            	}
             }
 
-            info("Transformation output to [ %s ]\n", outputName);
+            info("Output    [ %s ]\n", outputName);
+            info("          [ %s ]\n", outputPath);
             return true;
         }
 
-        protected void transform() throws JakartaTransformException {
-            long inputLength = inputFile.length();
+        public CompositeActionImpl getRootAction() {
+        	if ( rootAction == null ) {
+        		CompositeActionImpl useRootAction = new CompositeActionImpl(
+                    getLogger(), getBuffer(), getSelectionRule(), getSignatureRule() );
 
-            if (inputFile.isDirectory()) {
-            	transformDirectory(inputFile, outputFile);  // throws JakartaTransformException
-            	return;
-            } 
-            
-            if (inputName.toLowerCase().endsWith("java")) {
-                transformJava(inputFile, outputFile);  // throws JakartaTransformException
-                return;
+        		// The root action knows about all action types, and, as a special case,
+        		// knows about directory actions.
+
+        		DirectoryActionImpl directoryAction =
+        			useRootAction.addUsing( DirectoryActionImpl::new );
+        		ClassActionImpl classAction =
+        			useRootAction.addUsing( ClassActionImpl::new );
+        		JavaActionImpl javaAction =
+        			useRootAction.addUsing( JavaActionImpl::new );
+        		ServiceConfigActionImpl serviceConfigAction =
+        			useRootAction.addUsing( ServiceConfigActionImpl::new );
+        		ManifestActionImpl manifestAction =
+        			useRootAction.addUsing( ManifestActionImpl::newManifestAction );
+        		ManifestActionImpl featureAction =
+        			useRootAction.addUsing( ManifestActionImpl::newFeatureAction );
+        		JarActionImpl jarAction =
+        			useRootAction.addUsing( JarActionImpl::new );
+        		NullActionImpl nullAction =
+        			useRootAction.addUsing( NullActionImpl::new );
+
+        		// Directory actions know about all actions except for directory actions.
+
+        		directoryAction.addAction(classAction);
+        		directoryAction.addAction(javaAction);
+        		directoryAction.addAction(serviceConfigAction);
+        		directoryAction.addAction(manifestAction);
+        		directoryAction.addAction(featureAction);
+        		directoryAction.addAction(jarAction);
+        		directoryAction.addAction(nullAction);
+
+        		// Jar actions know about all actions except directory actions and jar actions.
+        		// TODO: Should jars be allowed to nest other archives?
+        		jarAction.addAction(classAction);
+        		jarAction.addAction(javaAction);
+        		jarAction.addAction(serviceConfigAction);
+        		jarAction.addAction(manifestAction);
+        		jarAction.addAction(featureAction);
+        		jarAction.addAction(nullAction);
+
+        		rootAction = useRootAction;
             }
 
-            try ( InputStream inputStream = IO.stream(inputFile) ) {
-                try ( OutputStream outputStream = IO.outputStream(outputFile) ) {
-                	transform(inputStream, inputLength, outputStream); // throws JakartaTransformException
-                } catch ( IOException e ) {
-                	throw new JakartaTransformException("Failed to open input [ " + inputFile.getAbsolutePath() + " ]", e);
-                }
-            } catch ( IOException e ) {
-            	throw new JakartaTransformException("Failed to open output [ " + outputFile.getAbsolutePath() + " ]", e);
-            }
+            return rootAction;
         }
 
-        protected void transformClass(
-            	InputStream inputStream, long inputLength,
-            	OutputStream outputStream) throws JakartaTransformException {
+        public boolean acceptAction() {
+        	String actionName = getOptionValue(AppOption.FILE_TYPE);
 
-    		int intLength = FileUtils.verifyArray(0, inputLength);
+        	if ( actionName != null ) {
+        		for ( ActionImpl action : getRootAction().getActions() ) {
+        			if ( action.getActionType().matches(actionName) ) {
+        				info("Forced action [ %s ] [ %s ]\n", actionName, action.getName());
+        				acceptedAction = action;
+        				return true;
+        			}
+        		}
+        		error("No match for forced action [ %s ]", actionName);
+        		return false;
 
-    		ClassAction classAction = new ClassActionImpl(
-        		getLogger(), getBuffer(), getSelectionRule(), getSignatureRule() ); 
-
-    		classAction.apply(inputPath, inputStream, intLength, outputStream);
-
-    		if ( classAction.hasChanges() ) {
-    			ClassChanges classChanges = classAction.getChanges();
-
-    			info( "Class name [ %s ] [ %s ]\n",
-            		classChanges.getInputClassName(),
-    				classChanges.getOutputClassName() );
-
-    			String inputSuperName = classChanges.getInputSuperName();
-    			if ( inputSuperName != null ) {
-    				info( "Class name [ %s ] [ %s ]\n",
-    					inputSuperName,
-    					classChanges.getOutputSuperName() );
-    			}
-
-    			info( "Modified interfaces [ %s ]\n", classChanges.getModifiedInterfaces() );
-    			info( "Modified fields     [ %s ]\n", classChanges.getModifiedFields() );
-    			info( "Modified methods    [ %s ]\n", classChanges.getModifiedMethods() );
-    			info( "Modified constants  [ %s ]\n", classChanges.getModifiedConstants() );
-    		}
-        }
-
-        protected void transformServiceConfig(
-        	InputStream inputStream, long inputLength,
-            OutputStream outputStream) throws JakartaTransformException {
-
-    		int intLength = FileUtils.verifyArray(0, inputLength);
-
-    		ServiceConfigAction configAction = new ServiceConfigActionImpl(
-            	getLogger(), getBuffer(), getSelectionRule(), getSignatureRule() ); 
-
-    		configAction.apply(inputPath, inputStream, intLength, outputStream);
-
-    		if ( configAction.hasChanges() ) {
-    			ServiceConfigChanges configChanges = configAction.getChanges();
-
-    			info( "Resource name [ %s ] [ %s ]\n",
-            		configChanges.getInputResourceName(),
-    				configChanges.getOutputResourceName() );
-
-    			info( "Replacements [ %s ]\n", configChanges.getChangedProviders() );
-    		}
-        }
-
-        protected void transformManifest(
-            InputStream inputStream, long inputLength,
-            OutputStream outputStream) throws JakartaTransformException {
-
-    		int intLength = FileUtils.verifyArray(0, inputLength);
-
-    		ManifestAction manifestAction = new ManifestActionImpl(
-    			getLogger(), getBuffer(), getSelectionRule(), getSignatureRule(),
-            	ManifestActionImpl.IS_MANIFEST);
-
-    		manifestAction.apply(inputPath, inputStream, intLength, outputStream);
-
-    		if ( manifestAction.hasChanges() ) {
-    			ManifestChanges configChanges = manifestAction.getChanges();
-
-    			info( "Resource name [ %s ] [ %s ]\n",
-            		configChanges.getInputResourceName(),
-    				configChanges.getOutputResourceName() );
-
-    			info( "Replacements [ %s ]\n", configChanges.getReplacements() );
-    		}
-        }
-
-        protected void transformFeature(
-        	InputStream inputStream, long inputLength,
-        	OutputStream outputStream) throws JakartaTransformException {
-
-        	int intLength = FileUtils.verifyArray(0, inputLength);
-
-        	ManifestAction featureAction = new ManifestActionImpl(
-        		getLogger(), getBuffer(), getSelectionRule(), getSignatureRule(),
-        		ManifestActionImpl.IS_FEATURE );
-
-        	featureAction.apply(inputPath, inputStream, intLength, outputStream);
-
-        	if ( featureAction.hasChanges() ) {
-        		ManifestChanges configChanges = featureAction.getChanges();
-
-        		info( "Resource name [ %s ] [ %s ]\n",
-               		configChanges.getInputResourceName(),
-        			configChanges.getOutputResourceName() );
-
-        		info( "Replacements [ %s ]\n", configChanges.getReplacements() );
+        	} else {
+        		acceptedAction = getRootAction().acceptAction(inputName,  inputFile);
+        		if ( acceptedAction == null ) {
+        			error("No action selected for input [ %s ]", inputName);
+        			return false;
+        		} else {
+        			info("Action selected for input [ %s ]: %s", inputName, acceptedAction.getName());
+        			return true;
+        		}
         	}
         }
 
-        protected void transformDirectory(File inputFile,
-        		                          File outputFile) throws JakartaTransformException {
-    		
-    		DirectoryActionImpl dirAction = new DirectoryActionImpl(
-                    getLogger(), getBuffer(), getSelectionRule(), getSignatureRule());
-                dirAction.addUsing( ClassActionImpl::new );
-                dirAction.addUsing( ServiceConfigActionImpl::new );
-                dirAction.addUsing( ManifestActionImpl::newManifestAction );
-                dirAction.addUsing( ManifestActionImpl::newFeatureAction );
-                dirAction.addUsing( JarActionImpl::new );
+        protected void transform()
+        	throws JakartaTransformException {
 
-    		dirAction.apply(inputFile, outputFile);
+        	acceptedAction.apply(inputName, inputFile, outputFile);
 
-    		if ( dirAction.hasChanges() ) {
-    			DirectoryChanges dirChanges = dirAction.getChanges();
-                dirChanges.displayChanges(infoStream);
+    		if ( acceptedAction.hasChanges() ) {
+    			acceptedAction.getChanges().displayChanges( getInfoStream(), inputPath, outputPath );
     		}
-        }
-        
-        protected void transformJava(File in, File out) throws JakartaTransformException {
-
-
-
-            JavaAction javaAction = new JavaActionImpl(getLogger(),                     
-                                                       getBuffer(), 
-                                                       getSelectionRule(), 
-                                                       getSignatureRule() ); 
-
-            javaAction.apply(in, out);
-
-            if ( javaAction.hasChanges() ) {
-                JavaChanges javaChanges = javaAction.getChanges();
-
-                info( "Java file name [ %s ] [ %s ]\n",
-                    javaChanges.getInputResourceName(),
-                    javaChanges.getOutputResourceName() );
-                info( "Replacements [ %s ]\n", javaChanges.getReplacements() );
-            }
-        }
-        
-        //
-
-        protected void transformJar(
-        		InputStream inputStream, long inputLength,
-        		OutputStream outputStream) throws JakartaTransformException {
-
-    		JarActionImpl jarAction = new JarActionImpl(
-    			getLogger(), getBuffer(), getSelectionRule(), getSignatureRule());
-    		jarAction.addUsing( ClassActionImpl::new );
-    		jarAction.addUsing( ServiceConfigActionImpl::new );
-    		jarAction.addUsing( ManifestActionImpl::newManifestAction );
-    		jarAction.addUsing( ManifestActionImpl::newFeatureAction );
-
-        	jarAction.apply(inputPath, inputStream, outputPath, outputStream); 
-            
-            if ( jarAction.hasChanges() ) {
-                JarChanges jarChanges = jarAction.getChanges();
-                jarChanges.displayChanges(infoStream);
-            }
-        }
-
-    	protected void transformOther( 
-    		InputStream inputStream, long inputLength,
-    		OutputStream outputStream) throws JakartaTransformException {
-
-    		info("Stub transfer [ " + inputPath + " ] to [ " + outputPath + " ]\n");
-
-    		try {
-    			FileUtils.transfer(inputStream, outputStream);
-    		} catch ( IOException e ) {
-    			throw new JakartaTransformException(
-    				"Raw transfer failure from [ " + inputPath + " ] to [ " + outputPath + " ]",
-    				e);
-    		}
-    	}
-    	
-        protected void transform(
-        	InputStream inputStream, long inputLength,
-        	OutputStream outputStream) throws JakartaTransformException {
-
-        	if ( actionType == ActionType.CLASS ) {
-        		transformClass(inputStream, inputLength, outputStream);
-        	} else if ( actionType == ActionType.SERVICE_CONFIG) {
-        		transformServiceConfig(inputStream, inputLength, outputStream);
-        	} else if ( actionType == ActionType.MANIFEST) {
-        		transformManifest(inputStream, inputLength, outputStream);
-        	} else if ( actionType == ActionType.FEATURE) {
-        		transformFeature(inputStream, inputLength, outputStream);
-
-        	} else if ( actionType == ActionType.XML ) {
-        		transformOther(inputStream, inputLength, outputStream);
-
-        	} else if ( actionType == ActionType.JAR ) {
-        		transformJar(inputStream, inputLength, outputStream);
-
-        	} else if ( actionType == ActionType.ZIP ) {
-        		transformOther(inputStream, inputLength, outputStream);
-        	} else if ( actionType == ActionType.WAR ) {
-        		transformOther(inputStream, inputLength, outputStream);
-        	} else if ( actionType == ActionType.RAR) {
-        		transformOther(inputStream, inputLength, outputStream);
-        	} else if ( actionType == ActionType.EAR ) {
-                transformOther(inputStream, inputLength, outputStream);
-
-            } else if ( actionType == ActionType.JAVA ) {
-                transformOther(inputStream, inputLength, outputStream);
-
-            } else {
-        		throw new IllegalArgumentException("Unknown transform type [ " + actionType + " ]");
-        	}
         }
     }
 
@@ -1012,7 +791,7 @@ public class JakartaTransformer {
         if ( !options.setInput() ) { 
             return TRANSFORM_ERROR_RC;
         }
-         
+
         if ( !options.setOutput() ) {
             return TRANSFORM_ERROR_RC;
         }
@@ -1030,6 +809,11 @@ public class JakartaTransformer {
         }
         if ( options.isVerbose ) {
         	options.logRules( getInfoStream() );
+        }
+
+        if ( !options.acceptAction() ) {
+        	info("No action selected");
+        	return FILE_TYPE_ERROR_RC;
         }
 
         try {

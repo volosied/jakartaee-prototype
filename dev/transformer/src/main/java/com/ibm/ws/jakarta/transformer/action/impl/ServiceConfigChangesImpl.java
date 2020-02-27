@@ -1,5 +1,7 @@
 package com.ibm.ws.jakarta.transformer.action.impl;
 
+import java.io.PrintStream;
+
 import com.ibm.ws.jakarta.transformer.action.ServiceConfigChanges;
 
 public class ServiceConfigChangesImpl extends ChangesImpl implements ServiceConfigChanges {
@@ -48,5 +50,20 @@ public class ServiceConfigChangesImpl extends ChangesImpl implements ServiceConf
 	@Override
 	public int getUnchangedProviders() {
 		return unchangedProviders;
+	}
+
+	//
+
+	@Override
+	public void displayChanges(PrintStream printStream, String inputPath, String outputPath) {
+		printStream.printf(
+			"Input  [ %s ] as [ %s ]\n",
+	       	getInputResourceName(), inputPath);
+		printStream.printf(
+			"Output [ %s ] as [ %s ]\n",
+			getOutputResourceName(), outputPath);
+
+		printStream.printf( "Replacements [ %s ]\n",
+			getChangedProviders() );
 	}
 }

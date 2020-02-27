@@ -2,11 +2,13 @@ package com.ibm.ws.jakarta.transformer.action.impl;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
@@ -17,16 +19,17 @@ import com.ibm.ws.jakarta.transformer.util.ByteData;
 public class JavaActionImpl extends ActionImpl implements JavaAction {	
 
 	public JavaActionImpl(
-			LoggerImpl logger,
-			InputBufferImpl buffer,
-			SelectionRuleImpl selectionRule,
-			SignatureRuleImpl signatureRule) {
+		LoggerImpl logger,
+		InputBufferImpl buffer,
+		SelectionRuleImpl selectionRule,
+		SignatureRuleImpl signatureRule) {
 
-		super(logger, buffer, selectionRule, signatureRule);
+        super(logger, buffer, selectionRule, signatureRule);
 	}
 
 	//
 
+	@Override
 	public String getName() {
 		return ( "Java Action" );
 	}
@@ -59,13 +62,13 @@ public class JavaActionImpl extends ActionImpl implements JavaAction {
 	//
 
 	@Override
-	public boolean accept(String resourceName) {
-        return resourceName.endsWith(".java");
+	public String getAcceptExtension() {
+		return ".java";
 	}
 
 	//
-    
-	   /**
+
+	/**
      * Replace all embedded packages of specified text with replacement
      * packages.
      *
@@ -75,7 +78,6 @@ public class JavaActionImpl extends ActionImpl implements JavaAction {
      *     replacements were performed.
      */
     protected String replacePackages(String text) {
-
         //System.out.println("replacePackages: Initial text [ " + text + " ]");
 
         String initialText = text;
@@ -130,37 +132,120 @@ public class JavaActionImpl extends ActionImpl implements JavaAction {
             return text;
         }
     }
-	
-    public void apply(File inputFile, File outputFile)  throws JakartaTransformException {
-        
-        setResourceNames(inputFile.getName(), outputFile.getName());
-        int replacements = 0;
-        try (BufferedReader   bReader = new BufferedReader(new FileReader(inputFile));
-             FileOutputStream fos     = new FileOutputStream(outputFile);
-             BufferedWriter   bWriter = new BufferedWriter(new OutputStreamWriter(fos))) {
-            
-               String inLine;
 
-               while ((inLine = bReader.readLine()) != null) {
+	@Override
+	public ByteData apply(String inputName, byte[] inputBytes, int inputLength) 
+		throws JakartaTransformException {
 
-                   String outLine = replacePackages(inLine);
-                   if (outLine == null) {
-                       outLine = inLine;     
-                   } else {
-                       replacements++;
-                   }
-                   bWriter.write(outLine + "\n");
-               }
+		clearChanges();
 
-           } catch (IOException e) {
-               throw new JakartaTransformException(e.getMessage(), e.getCause());
-           } finally {
-               addReplacements(replacements); 
-           }
+		String outputName = inputName; 
+		// String outputName = renameInput(inputName); // TODO
+		if ( outputName == null ) {
+			outputName = inputName;
+		} else {
+			log("Class name [ %s ]\n          -> [ %s ]\n", inputName, outputName);
+		}
+		setResourceNames(inputName, outputName);
+
+		InputStream inputStream = new ByteArrayInputStream(inputBytes);
+		InputStreamReader inputReader;
+		try {
+			inputReader = new InputStreamReader(inputStream, "UTF-8");
+		} catch ( UnsupportedEncodingException e ) {
+			error("Strange: UTF-8 is an unrecognized encoding for reading [ %s ]\n", e, inputName);
+			return null;
+		}
+
+		BufferedReader reader = new BufferedReader(inputReader);
+
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(inputBytes.length);
+		OutputStreamWriter outputWriter;
+		try {
+			outputWriter = new OutputStreamWriter(outputStream, "UTF-8");
+		} catch ( UnsupportedEncodingException e ) {
+			error("Strange: UTF-8 is an unrecognized encoding for writing [ %s ]\n", e, inputName);
+			return null;
+		}
+
+		BufferedWriter writer = new BufferedWriter(outputWriter);
+
+		try {
+			transform(reader, writer); // throws IOException
+		} catch ( IOException e ) {
+			error("Failed to transform [ %s ]\n", e, inputName);
+			return null;
+		}
+
+		try {
+			writer.flush(); // throws
+		} catch ( IOException e ) {
+			error("Failed to flush [ %s ]\n", e, inputName);
+			return null;
+		}
+
+		if ( !hasNonResourceNameChanges() ) {
+			return null;
+		}
+
+		byte[] outputBytes = outputStream.toByteArray();
+		return new ByteData(inputName, outputBytes, 0, outputBytes.length);
+	}
+
+	protected void transform(BufferedReader reader, BufferedWriter writer)
+		throws IOException {
+
+		String inputLine;
+		while ( (inputLine = reader.readLine()) != null ) {
+			String outputLine = replacePackages(inputLine);
+			if ( outputLine == null ) {
+				outputLine = inputLine;
+			} else {
+				addReplacement();
+			}
+			writer.write(outputLine);
+			writer.write('\n');
+		}
     }
 
-    @Override
-    public ByteData apply(String inputName, byte[] inputBytes, int inputLength) throws JakartaTransformException {
-        throw new UnsupportedOperationException();
-    }
+	// TODO: Copied from ServiceConfigActionImpl; need to update
+	//       to work for paths.
+
+	protected String renameInput(String inputName) {
+		String inputPrefix;
+		String classQualifiedName;
+
+		int lastSlash = inputName.lastIndexOf('/');
+		if ( lastSlash == -1 ) {
+			inputPrefix = null;
+			classQualifiedName = inputName;
+		} else {
+			inputPrefix = inputName.substring(0, lastSlash + 1);
+			classQualifiedName = inputName.substring(lastSlash + 1);
+		}
+
+		int classStart = classQualifiedName.lastIndexOf('.');
+		if ( classStart == -1 ) {
+			return null;
+		}
+
+		String packageName = classQualifiedName.substring(0, classStart);
+		if ( packageName.isEmpty() ) {
+			return null;
+		}
+
+		// 'className' includes a leading '.'
+		String className = classQualifiedName.substring(classStart);
+
+		String outputName = replacePackage(packageName);
+		if ( outputName == null ) {
+			return null;
+		}
+
+		if ( inputPrefix == null ) {
+			return outputName + className;
+		} else {
+			return inputPrefix + outputName + className;
+		}
+	}
 }

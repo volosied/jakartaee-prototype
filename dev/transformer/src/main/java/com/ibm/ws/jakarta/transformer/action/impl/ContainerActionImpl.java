@@ -1,7 +1,6 @@
 package com.ibm.ws.jakarta.transformer.action.impl;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.File;
 import java.util.List;
 
 import com.ibm.ws.jakarta.transformer.JakartaTransformException;
@@ -38,7 +37,7 @@ public abstract class ContainerActionImpl extends ActionImpl implements Containe
 		return compositeAction;
 	}
 
-	protected void addAction(ActionImpl action) {
+	public void addAction(ActionImpl action) {
 		getAction().addAction(action);
 	}
 
@@ -48,8 +47,18 @@ public abstract class ContainerActionImpl extends ActionImpl implements Containe
 	}
 
 	@Override
+	public String getAcceptExtension() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public ActionImpl acceptAction(String resourceName) {
-		return getAction().acceptAction(resourceName);
+		return acceptAction(resourceName, null);
+	}
+
+	@Override
+	public ActionImpl acceptAction(String resourceName, File resourceFile) {
+		return getAction().acceptAction(resourceName, resourceFile);
 	}
 
 	//
@@ -94,23 +103,11 @@ public abstract class ContainerActionImpl extends ActionImpl implements Containe
 		getChanges().record(action);
 	}
 
-	//
-
-	@Override
-	public boolean accept(String resourceName) {
-		return resourceName.endsWith(".jar");
-	}
-
-	//
-
-	public abstract void apply(
-		String inputPath, InputStream inputStream,
-		String outputPath, OutputStream outputStream) throws JakartaTransformException;
-
 	// Byte base container conversion is not supported.
 
 	@Override
-	public ByteData apply(String inputName, byte[] inputBytes, int inputLength) throws JakartaTransformException {
+	public ByteData apply(String inputName, byte[] inputBytes, int inputLength)
+		throws JakartaTransformException {
 		throw new UnsupportedOperationException();
 	}
 }

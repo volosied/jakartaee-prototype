@@ -1,5 +1,7 @@
 package com.ibm.ws.jakarta.transformer.action.impl;
 
+import java.io.PrintStream;
+
 import com.ibm.ws.jakarta.transformer.action.ClassChanges;
 
 public class ClassChangesImpl extends ChangesImpl implements ClassChanges {
@@ -170,5 +172,34 @@ public class ClassChangesImpl extends ChangesImpl implements ClassChanges {
 	@Override
 	public void addModifiedConstant() {
 		modifiedConstants++;
+	}
+	
+	//
+	
+	@Override
+	public void displayChanges(PrintStream printStream, String inputPath, String outputPath) {
+		printStream.printf(
+			"Input name [ %s ] as [ %s ]\n",
+			getInputResourceName(), inputPath );
+		
+		printStream.printf(
+			"Output name [ %s ] as [ %s ]\n",
+			getOutputResourceName(), outputPath );
+
+		printStream.printf( "Class name [ %s ] [ %s ]\n",
+			getInputClassName(),
+			getOutputClassName() );
+
+		String useInputSuperName = getInputSuperName();
+		if ( useInputSuperName != null ) {
+			printStream.printf( "Super class name [ %s ] [ %s ]\n",
+				useInputSuperName,
+				getOutputSuperName() );
+		}
+
+		printStream.printf( "Modified interfaces [ %s ]\n", getModifiedInterfaces() );
+		printStream.printf( "Modified fields     [ %s ]\n", getModifiedFields() );
+		printStream.printf( "Modified methods    [ %s ]\n", getModifiedMethods() );
+		printStream.printf( "Modified constants  [ %s ]\n", getModifiedConstants() );	
 	}
 }
