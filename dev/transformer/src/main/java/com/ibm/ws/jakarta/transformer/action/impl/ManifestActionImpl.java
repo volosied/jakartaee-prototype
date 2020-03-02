@@ -673,28 +673,80 @@ public class ManifestActionImpl extends ActionImpl implements ManifestAction {
 		Attributes initialMainAttributes,
 		Attributes finalMainAttributes) {
 
-		String symbolicName = initialMainAttributes.getValue(SYMBOLIC_NAME_PROPERTY_NAME);
-		if ( symbolicName == null ) {
+		String initialSymbolicName = initialMainAttributes.getValue(SYMBOLIC_NAME_PROPERTY_NAME);
+		if ( initialSymbolicName == null ) {
+			verbose("Input [ %s ] has no bundle symbolic name", inputName);
 			return false;
 		}
 
-		BundleData bundleUpdate = getBundleUpdate(symbolicName);
+		String matchCase;
+		boolean matched;
+		boolean isWildcard;
+		BundleData bundleUpdate = getBundleUpdate(initialSymbolicName);
 		if ( bundleUpdate == null ) {
+			bundleUpdate = getBundleUpdate("*");
+			if ( bundleUpdate != null ) {
+				matched = true;
+				isWildcard = true;
+				matchCase = "a wildcard identity update";
+			} else {
+				matched = false;
+				isWildcard = false;
+				matchCase = "no identity update";
+			}
+		} else {
+			matched = true;
+			isWildcard = false;
+			matchCase = "has identity update";
+		}
+		verbose("Input [ %s ] symbolic name [ %s ] has %s\n", inputName, initialSymbolicName, matchCase);
+		if ( !matched ) {
 			return false;
 		}
 
-		finalMainAttributes.putValue(
-			SYMBOLIC_NAME_PROPERTY_NAME,
-			bundleUpdate.getSymbolicName());
-		finalMainAttributes.putValue(
-			VERSION_PROPERTY_NAME,
-			bundleUpdate.getVersion());
-		finalMainAttributes.putValue(
-			NAME_PROPERTY_NAME,
-			bundleUpdate.updateName(initialMainAttributes.getValue(NAME_PROPERTY_NAME)));
-		finalMainAttributes.putValue(
-			DESCRIPTION_PROPERTY_NAME,
-			bundleUpdate.updateDescription(initialMainAttributes.getValue(DESCRIPTION_PROPERTY_NAME)));
+		@SuppressWarnings("null")
+		String finalSymbolicName = bundleUpdate.getSymbolicName();
+
+		if ( isWildcard ) {
+			int wildcardOffset = finalSymbolicName.indexOf('*');
+			if ( wildcardOffset != -1 ) {
+				finalSymbolicName =
+					finalSymbolicName.substring(0, wildcardOffset) +
+					initialSymbolicName +
+					finalSymbolicName.substring(wildcardOffset + 1);
+			}
+		}
+		finalMainAttributes.putValue(SYMBOLIC_NAME_PROPERTY_NAME, finalSymbolicName);
+		log("Bundle symbolic name: %s\n                  --> %s\n", initialSymbolicName, finalSymbolicName);
+
+		if ( !isWildcard ) {
+			String initialVersion = initialMainAttributes.getValue(VERSION_PROPERTY_NAME);
+			if ( initialVersion != null ) {
+				String finalVersion = bundleUpdate.getVersion();
+				if ( (finalVersion != null) && !finalVersion.isEmpty() ) {
+					finalMainAttributes.putValue(VERSION_PROPERTY_NAME, finalVersion);
+					log("Bundle version      : %s\n                  --> %s\n", initialVersion, finalVersion);
+				}
+			}
+		}
+
+		String initialName = initialMainAttributes.getValue(NAME_PROPERTY_NAME);
+		if ( initialName != null ) {
+			String finalName = bundleUpdate.updateName(initialName);
+			if ( (finalName != null) && !finalName.isEmpty() ) {
+				finalMainAttributes.putValue(NAME_PROPERTY_NAME, finalName);
+				log("Bundle name         : %s\n                  --> %s\n", initialName, finalName);
+			}
+		}
+
+		String initialDescription = initialMainAttributes.getValue(DESCRIPTION_PROPERTY_NAME);
+		if ( initialDescription != null ) {
+			String finalDescription = bundleUpdate.updateDescription(initialDescription);
+			if ( (finalDescription != null) && !finalDescription.isEmpty() ) {
+				finalMainAttributes.putValue(DESCRIPTION_PROPERTY_NAME, finalDescription);
+				log("Bundle description  : %s\n                  --> %s\n", initialDescription, finalDescription);
+			}
+		}
 
 		return true;
 	}

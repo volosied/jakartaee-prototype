@@ -54,7 +54,7 @@ public class BundleDataImpl implements BundleData {
     			nextTail = tail.substring(comma + 1).trim();
     		}
 
-    		if ( (head == null) || head.isEmpty() || (nextTail == null) || nextTail.isEmpty() ) {
+    		if ( (head == null) || (nextTail == null) || nextTail.isEmpty() ) {
     			throw formatError(packedData);
     		}
 
