@@ -22,6 +22,7 @@ import aQute.bnd.classfile.ClassFile;
 import aQute.bnd.classfile.CodeAttribute;
 import aQute.bnd.classfile.CodeAttribute.ExceptionHandler;
 import aQute.bnd.classfile.ConstantPool;
+import aQute.bnd.classfile.ConstantValueAttribute;
 import aQute.bnd.classfile.ConstantPool.ClassInfo;
 import aQute.bnd.classfile.ConstantPool.MethodTypeInfo;
 import aQute.bnd.classfile.ConstantPool.NameAndTypeInfo;
@@ -689,12 +690,45 @@ public class ClassActionImpl extends ActionImpl implements ClassAction {
 				break;
 			}
 
+			case ConstantValueAttribute.NAME: {
+				ConstantValueAttribute inputAttribute = (ConstantValueAttribute) attr;
+				Object inputValue = inputAttribute.value;
+				Object outputValue = transformConstantValue(inputValue);
+				return ( (outputValue == null) ? null : new ConstantValueAttribute(outputValue) );
+			}
+
 			default:
 				break;
 		}
 
 		return null;
 	}
+
+	    
+    private Object transformConstantValue(Object inputValue) {
+        if ( inputValue instanceof String ) {
+            String inputString = (String) inputValue;
+            String transformCase = "constant";  // dotted package format
+            String outputString = transformConstantAsDescriptor(inputString, SignatureRule.ALLOW_SIMPLE_SUBSTITUTION);
+            if ( outputString == null ) {
+                transformCase = "resource";  // url format (slashes)
+                outputString = transformConstantAsBinaryType(inputString, SignatureRule.ALLOW_SIMPLE_SUBSTITUTION);
+                if ( outputString == null ) {
+                    transformCase = "direct";
+                    outputString = transformDirectString(inputString);
+                }
+            }
+            if ( outputString == null ) {
+                verbose("    String ConstantValue: %s\n (unchanged)", inputValue);
+            } else {
+                verbose("    String ConstantValue: %s\n                       -> %s (%s)\n", inputValue, outputString, transformCase);
+            }
+            return outputString;
+        } else {
+            verbose("    Non-String ConstantValue: %s\n (unchanged)", inputValue);
+            return null;
+        }
+    }
 
 	private <A extends AnnotationsAttribute> A transform(
 		A inputAttribute,
